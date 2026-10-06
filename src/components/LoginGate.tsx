@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { sendMagicLink } from '@/lib/authClient'
+import { sendMagicLink, signInWithGoogle } from '@/lib/authClient'
 import { useAuth } from '@/lib/auth'
 
 /** Full-screen sign-in / status screen shown instead of any page until the user is allowed in. */
@@ -9,6 +9,17 @@ export function LoginGate() {
   const [busy, setBusy] = useState(false)
   const [sent, setSent] = useState(false)
   const [error, setError] = useState('')
+
+  async function handleGoogle() {
+    setError('')
+    setBusy(true)
+    try {
+      await signInWithGoogle() // leaves the page; comes back signed in
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Could not start Google sign-in.')
+      setBusy(false)
+    }
+  }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -66,11 +77,20 @@ export function LoginGate() {
 
           {status === 'signedOut' && !sent && (
             <form onSubmit={handleSubmit}>
-              <div className="card-title" style={{ marginBottom: 4 }}>
+              <div className="card-title" style={{ marginBottom: 12 }}>
                 Sign in
               </div>
-              <p className="field-hint" style={{ marginBottom: 12 }}>
-                Enter your email and we'll send you a one-time sign-in link. No password needed.
+              <button
+                type="button"
+                className="sub-btn ghost"
+                disabled={busy}
+                onClick={() => void handleGoogle()}
+                style={{ width: '100%', marginBottom: 12 }}
+              >
+                Sign in with Google
+              </button>
+              <p className="field-hint" style={{ margin: '4px 0 12px', textAlign: 'center' }}>
+                — or use an email link (no password needed) —
               </p>
               <div className="field">
                 <label htmlFor="login-email">Email</label>
