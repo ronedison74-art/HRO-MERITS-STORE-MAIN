@@ -63,6 +63,15 @@ export async function sendMagicLink(rawEmail: string): Promise<void> {
   if (error) throw new Error(error.message)
 }
 
+/** Redirects to Google. The server still only lets allow-listed emails in. */
+export async function signInWithGoogle(): Promise<void> {
+  const { error } = await getAuthClient().auth.signInWithOAuth({
+    provider: 'google',
+    options: { redirectTo: `${window.location.origin}/` },
+  })
+  if (error) throw new Error(error.message)
+}
+
 export async function signOut(): Promise<void> {
   await getAuthClient().auth.signOut()
 }

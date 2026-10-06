@@ -689,6 +689,20 @@ export const saveUserServer = createServerFn({ method: 'POST' })
       .from('ms_users')
       .upsert({ email, role: data.role, active }, { onConflict: 'email' })
     if (error) fail(error.message)
+
+    // Pre-create the login account (ignored if it already exists).
+    if (active) {
+      const { error: createErr } = await sb.auth.admin.createUser({
+        email,
+        email_confirm: true,
+      })
+      if (
+        createErr &&
+        !/already|exists|registered/i.test(`${createErr.code ?? ''} ${createErr.message}`)
+      ) {
+        fail(createErr.message)
+      }
+    }
     return { ok: true }
   })
 
