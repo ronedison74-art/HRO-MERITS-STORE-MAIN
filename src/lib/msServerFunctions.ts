@@ -42,11 +42,15 @@ function isoDate(v: unknown, label: string): string {
   return s
 }
 
+const PRIV_COLS = 'id,name,cost,type,active,unit_label'
+
 const privilegeFromRow = (r: Row): Privilege => ({
   id: String(r.id),
   name: String(r.name),
   cost: Number(r.cost) || 0,
   type: String(r.type) as PrivilegeType,
+  active: r.active !== false,
+  unitLabel: r.unit_label == null ? '' : String(r.unit_label),
 })
 
 const cadetFromRow = (r: Row): Cadet => ({
@@ -177,7 +181,7 @@ export const fetchAllServer = createServerFn({ method: 'GET' })
     const sb = await db()
 
     const [privRes, cadetRows, txnRows] = await Promise.all([
-      sb.from('ms_privileges').select('id,name,cost,type').order('name'),
+      sb.from('ms_privileges').select(PRIV_COLS).order('name'),
       fetchAllRows((from, to) =>
         sb
           .from('ms_cadets')
@@ -236,7 +240,7 @@ export const createAvailmentsServer = createServerFn({ method: 'POST' })
     // Costs always come from the Admin-set privilege — the browser can't override them.
     const { data: privRows, error: privErr } = await sb
       .from('ms_privileges')
-      .select('id,name,cost,type')
+      .select(PRIV_COLS)
     if (privErr) fail(privErr.message)
     const privs = new Map((privRows ?? []).map((p) => [String(p.id), privilegeFromRow(p)]))
 
@@ -250,6 +254,7 @@ export const createAvailmentsServer = createServerFn({ method: 'POST' })
       const n = i + 1
       const priv = privs.get(String(item.privilegeId))
       if (!priv) fail(`Row ${n}: unknown privilege.`)
+      if (!priv.active) fail(`Row ${n}: "${priv.name}" is disabled by an admin.`)
 
       const qty =
         priv.type === 'ACCOUNTABILITY' ? Number(item.quantity) : undefined
@@ -449,21 +454,108 @@ export const deleteTransactionServer = createServerFn({ method: 'POST' })
    ADMIN: privileges
    ========================================================= */
 
-export const updatePrivilegeServer = createServerFn({ method: 'POST' })
+function slugify(name: string): string {
+  const base = name
+    .toLowerCase()
+    .normalize('NFKD')
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .slice(0, 40)
+  return base || 'privilege'
+}
+
+/** Create (no id) or edit (with id) a privilege. Past records keep their own copy of name/type/cost. */
+export const savePrivilegeServer = createServerFn({ method: 'POST' })
   .middleware([adminMiddleware])
-  .inputValidator((d: { id: string; cost: number }) => d)
+  .inputValidator(
+    (d: {
+      id?: string
+      name: string
+      cost: number
+      type: PrivilegeType
+      unitLabel?: string
+      active?: boolean
+    }) => d,
+  )
   .handler(async ({ data }) => {
-    const id = text(data.id, 'Privilege id', 50)
+    const name = text(data.name, 'Name', 100)
     const cost = amount(data.cost, 'Cost')
+    if (data.type !== 'REGULAR' && data.type !== 'ACCOUNTABILITY') {
+      fail('Type must be Regular or Accountability.')
+    }
+    const unitLabel =
+      data.type === 'ACCOUNTABILITY'
+        ? text(data.unitLabel, 'Unit label', 60, false) || 'Quantity'
+        : null
+
     const sb = await db()
+    const { data: all, error: listErr } = await sb.from('ms_privileges').select('id,name')
+    if (listErr) fail(listErr.message)
+    const others = (all ?? []).filter((p) => p.id !== data.id)
+    if (others.some((p) => String(p.name).trim().toLowerCase() === name.toLowerCase())) {
+      fail(`A privilege named "${name}" already exists.`)
+    }
+
+    if (data.id) {
+      const id = text(data.id, 'Privilege id', 60)
+      const patch: Row = {
+        name,
+        cost,
+        type: data.type,
+        unit_label: unitLabel,
+        updated_at: new Date().toISOString(),
+      }
+      if (typeof data.active === 'boolean') patch.active = data.active
+      const { data: rows, error } = await sb
+        .from('ms_privileges')
+        .update(patch)
+        .eq('id', id)
+        .select(PRIV_COLS)
+      if (error) fail(error.message)
+      if (!rows?.length) fail('Privilege not found.')
+      return privilegeFromRow(rows[0])
+    }
+
+    const taken = new Set((all ?? []).map((p) => String(p.id)))
+    const base = slugify(name)
+    let id = base
+    for (let i = 2; taken.has(id); i++) id = `${base}-${i}`
+
     const { data: rows, error } = await sb
       .from('ms_privileges')
-      .update({ cost, updated_at: new Date().toISOString() })
+      .insert({ id, name, cost, type: data.type, unit_label: unitLabel, active: true })
+      .select(PRIV_COLS)
+    if (error) fail(error.message)
+    return privilegeFromRow(rows![0])
+  })
+
+/** Only allowed when no transaction has ever used it; otherwise disable it instead. */
+export const deletePrivilegeServer = createServerFn({ method: 'POST' })
+  .middleware([adminMiddleware])
+  .inputValidator((d: { id: string }) => d)
+  .handler(async ({ data }) => {
+    const id = text(data.id, 'Privilege id', 60)
+    const sb = await db()
+
+    const { count, error: cErr } = await sb
+      .from('ms_transactions')
+      .select('id', { count: 'exact', head: true })
+      .eq('privilege_id', id)
+    if (cErr) fail(cErr.message)
+    if ((count ?? 0) > 0) {
+      fail(
+        `This privilege is used by ${count} transaction${count === 1 ? '' : 's'}, so it can't be deleted. Disable it instead.`,
+      )
+    }
+
+    const { data: rows, error } = await sb
+      .from('ms_privileges')
+      .delete()
       .eq('id', id)
-      .select('id,name,cost,type')
+      .select('id')
     if (error) fail(error.message)
     if (!rows?.length) fail('Privilege not found.')
-    return privilegeFromRow(rows[0])
+    return { ok: true }
   })
 
 /* =========================================================

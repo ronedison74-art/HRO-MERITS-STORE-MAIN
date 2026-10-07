@@ -6,7 +6,8 @@ import {
   createAvailmentsServer,
   resolveConfirmationServer,
   deleteTransactionServer,
-  updatePrivilegeServer,
+  savePrivilegeServer,
+  deletePrivilegeServer,
   addCadetServer,
   updateCadetServer,
   deleteCadetServer,
@@ -41,8 +42,16 @@ export const resolveConfirmationRemote = (input: {
 export const deleteTransactionRemote = (id: string, password: string) =>
   deleteTransactionServer({ data: { id, password } })
 
-export const updatePrivilegeRemote = (id: string, cost: number): Promise<Privilege> =>
-  updatePrivilegeServer({ data: { id, cost } })
+export const savePrivilegeRemote = (input: {
+  id?: string
+  name: string
+  cost: number
+  type: Privilege['type']
+  unitLabel?: string
+  active?: boolean
+}): Promise<Privilege> => savePrivilegeServer({ data: input })
+
+export const deletePrivilegeRemote = (id: string) => deletePrivilegeServer({ data: { id } })
 
 export const addCadetRemote = (input: {
   name: string

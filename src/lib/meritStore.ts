@@ -24,6 +24,10 @@ export interface Privilege {
    */
   cost: number
   type: PrivilegeType
+  /** Disabled privileges are hidden on Encode; history keeps working. */
+  active: boolean
+  /** Accountability only: what the quantity is called (e.g. "ED Hours to Reduce"). */
+  unitLabel: string
 }
 
 /** Batches match Fleet Merits live data (year cohorts). */
@@ -66,7 +70,11 @@ export const ACCOUNTABILITY_MERIT_RATIO = 2
 export const DEFAULT_AVAILABLE_MERITS = 100
 
 export function accountabilityQuantityLabel(privilegeId: string): string {
-  return privilegeId === 'reduce-ed' ? 'ED Hours to Reduce' : 'Demerits to Offset'
+  const p = _privileges.find((x) => x.id === privilegeId)
+  if (p?.unitLabel) return p.unitLabel
+  if (privilegeId === 'reduce-ed') return 'ED Hours to Reduce'
+  if (privilegeId === 'offset-demerits') return 'Demerits to Offset'
+  return 'Quantity'
 }
 
 export function noConfirmationRuleLabel(type: PrivilegeType): string {
@@ -233,11 +241,27 @@ function setLocalBalance(cadetId: string, balance: number | null) {
 
 // ── Privileges (admin) ──────────────────────────────────────────────────────
 
-export async function updatePrivilegeCost(id: string, cost: number): Promise<Privilege[]> {
-  const saved = await ms.updatePrivilegeRemote(id, cost)
-  _privileges = _privileges.map((p) => (p.id === id ? saved : p))
+export async function savePrivilege(input: {
+  id?: string
+  name: string
+  cost: number
+  type: PrivilegeType
+  unitLabel?: string
+  active?: boolean
+}): Promise<Privilege> {
+  const saved = await ms.savePrivilegeRemote(input)
+  _privileges = input.id
+    ? _privileges.map((p) => (p.id === saved.id ? saved : p))
+    : [..._privileges, saved]
+  _privileges = [..._privileges].sort((a, b) => a.name.localeCompare(b.name))
   mutated()
-  return _privileges
+  return saved
+}
+
+export async function deletePrivilege(id: string): Promise<void> {
+  await ms.deletePrivilegeRemote(id)
+  _privileges = _privileges.filter((p) => p.id !== id)
+  mutated()
 }
 
 // ── Cadets (admin) ──────────────────────────────────────────────────────────
