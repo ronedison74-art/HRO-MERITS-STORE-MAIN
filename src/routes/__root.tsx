@@ -23,6 +23,8 @@ export const Route = createRootRoute({
       },
     ],
     links: [
+      { rel: 'icon', type: 'image/png', href: '/fleet-logo.png' },
+      { rel: 'apple-touch-icon', href: '/fleet-logo.png' },
       { rel: 'preconnect', href: 'https://fonts.googleapis.com' },
       {
         rel: 'stylesheet',
