@@ -60,3 +60,28 @@ export function resolveOutcome(
 export function round2(n: number): number {
   return Math.round(n * 100) / 100
 }
+
+export interface BalanceWarning {
+  balance: number
+  /** Merits already promised by this cadet's other Pending entries. */
+  pending: number
+  needed: number
+  /** balance − pending */
+  available: number
+}
+
+/**
+ * Warn (never block) when a cadet can't cover a new availment.
+ * Pending entries aren't deducted yet, so they're counted against the balance.
+ * Returns null when there is nothing to warn about.
+ */
+export function lowBalanceWarning(
+  balance: number,
+  pending: number,
+  needed: number | null | undefined,
+): BalanceWarning | null {
+  if (needed == null || !Number.isFinite(needed) || needed <= 0) return null
+  const available = round2(balance - pending)
+  if (available >= needed) return null
+  return { balance, pending, needed, available }
+}
