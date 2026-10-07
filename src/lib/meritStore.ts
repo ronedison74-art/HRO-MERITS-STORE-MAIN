@@ -1,9 +1,11 @@
 import * as ms from './msClient'
 import {
+  usedInPeriod,
   type PrivilegeType,
   type TransactionStatus,
   type ConfirmOutcome,
 } from './rules'
+import { todayISO } from './format'
 
 // Merit Store data layer.
 //
@@ -28,6 +30,11 @@ export interface Privilege {
   active: boolean
   /** Accountability only: what the quantity is called (e.g. "ED Hours to Reduce"). */
   unitLabel: string
+  /** Accountability only: max units per cadet per period (null = no limit). Warn-only. */
+  quotaLimit: number | null
+  quotaPeriod: 'month' | 'semester' | null
+  /** Accountability only: usual max units in a single entry (null = none). Warn-only. */
+  entryMax: number | null
 }
 
 /** Batches match Fleet Merits live data (year cohorts). */
@@ -88,6 +95,7 @@ const isBrowser = typeof window !== 'undefined'
 let _privileges: Privilege[] = []
 let _cadets: Cadet[] = []
 let _transactions: Transaction[] = []
+let _semester: { start: string; end: string } | null = null
 let _hydrated = false
 let _backend = false // true while the last fetch from Supabase succeeded
 let _lastError = ''
@@ -154,6 +162,7 @@ async function refreshFromBackend(): Promise<boolean> {
     _privileges = data.privileges
     _cadets = data.cadets
     _transactions = sortTransactions(data.transactions)
+    _semester = data.semester
     _backend = true
     _lastError = ''
     _hydrated = true
@@ -213,6 +222,7 @@ export function resetStore() {
   _privileges = []
   _cadets = []
   _transactions = []
+  _semester = null
   _hydrated = false
   _backend = false
   _lastError = ''
@@ -225,6 +235,7 @@ export function resetStore() {
 export const loadPrivileges = (): Privilege[] => _privileges
 export const loadCadets = (): Cadet[] => _cadets
 export const loadTransactions = (): Transaction[] => _transactions
+export const loadSemester = () => _semester
 
 function upsertLocalCadet(c: Cadet) {
   const i = _cadets.findIndex((x) => x.id === c.id)
@@ -239,6 +250,90 @@ function setLocalBalance(cadetId: string, balance: number | null) {
   )
 }
 
+// ── Fleet quotas (Fleet's "Quota ED" / "Quota DR" = units used so far) ─────
+
+/** Which privilege feeds which Fleet field. */
+const FLEET_QUOTA_IDS = { ed: 'reduce-ed', dr: 'offset-demerits' } as const
+
+function isFleetQuotaPrivilege(privilegeId: string): boolean {
+  return privilegeId === FLEET_QUOTA_IDS.ed || privilegeId === FLEET_QUOTA_IDS.dr
+}
+
+function currentQuotaUsed(
+  cadet: { id: string; name: string },
+  privilegeId: string,
+): number | null {
+  const rule = _privileges.find((p) => p.id === privilegeId)
+  if (!rule) return null
+  return usedInPeriod({
+    rule,
+    privilegeId,
+    cadetId: cadet.id,
+    cadetName: cadet.name,
+    onDate: todayISO(),
+    semester: _semester,
+    transactions: _transactions,
+  })
+}
+
+/** Send one cadet's current ED / DR usage to Fleet Merits. */
+export async function pushQuotasForCadet(cadet: {
+  id: string
+  name: string
+}): Promise<{ ok: true } | { ok: false; error: string }> {
+  const patch: { quota_ed?: number; quota_dr?: number } = {}
+  const ed = currentQuotaUsed(cadet, FLEET_QUOTA_IDS.ed)
+  const dr = currentQuotaUsed(cadet, FLEET_QUOTA_IDS.dr)
+  if (ed !== null) patch.quota_ed = ed
+  if (dr !== null) patch.quota_dr = dr
+  if (Object.keys(patch).length === 0) {
+    return {
+      ok: false,
+      error:
+        "The quota can't be calculated (set a quota on the privilege and the semester dates in Admin).",
+    }
+  }
+  try {
+    const { updateFleetQuotasByName } = await import('./fleetClient')
+    return await updateFleetQuotasByName(cadet.name, patch)
+  } catch (e) {
+    return { ok: false, error: errMsg(e) }
+  }
+}
+
+/** Admin: recompute everyone's ED / DR usage and write any differences to Fleet. */
+export async function pushAllQuotasToFleet(): Promise<{
+  updated: number
+  unchanged: number
+  notInFleet: number
+}> {
+  const { fetchFleetCadets, updateFleetQuotasById } = await import('./fleetClient')
+  const fleet = await fetchFleetCadets()
+  const byName = new Map(fleet.map((f) => [f.name.trim().toLowerCase(), f]))
+
+  const updates: { id: number; patch: { quota_ed?: number; quota_dr?: number } }[] = []
+  let unchanged = 0
+  let notInFleet = 0
+
+  for (const c of _cadets) {
+    const f = byName.get(c.name.trim().toLowerCase())
+    if (!f) {
+      notInFleet++
+      continue
+    }
+    const ed = currentQuotaUsed(c, FLEET_QUOTA_IDS.ed)
+    const dr = currentQuotaUsed(c, FLEET_QUOTA_IDS.dr)
+    const patch: { quota_ed?: number; quota_dr?: number } = {}
+    if (ed !== null && Number(f.quota_ed ?? 0) !== ed) patch.quota_ed = ed
+    if (dr !== null && Number(f.quota_dr ?? 0) !== dr) patch.quota_dr = dr
+    if (Object.keys(patch).length) updates.push({ id: f.id, patch })
+    else unchanged++
+  }
+
+  const { updated } = await updateFleetQuotasById(updates)
+  return { updated, unchanged, notInFleet }
+}
+
 // ── Privileges (admin) ──────────────────────────────────────────────────────
 
 export async function savePrivilege(input: {
@@ -248,12 +343,22 @@ export async function savePrivilege(input: {
   type: PrivilegeType
   unitLabel?: string
   active?: boolean
+  quotaLimit?: number | null
+  quotaPeriod?: 'month' | 'semester' | null
+  entryMax?: number | null
 }): Promise<Privilege> {
   const saved = await ms.savePrivilegeRemote(input)
   _privileges = input.id
     ? _privileges.map((p) => (p.id === saved.id ? saved : p))
     : [..._privileges, saved]
   _privileges = [..._privileges].sort((a, b) => a.name.localeCompare(b.name))
+  mutated()
+  return saved
+}
+
+export async function saveSemester(start: string, end: string) {
+  const saved = await ms.saveSemesterRemote(start, end)
+  _semester = saved
   mutated()
   return saved
 }
@@ -452,6 +557,8 @@ export async function resolveConfirmation(
   fleetSynced: boolean
   fleetError?: string
   unlinked: boolean
+  /** Set when Fleet's Quota ED / DR couldn't be updated. */
+  quotaError?: string
 }> {
   const res = await ms.resolveConfirmationRemote({ id, outcome, confirmationDate })
   const txn = res.transaction
@@ -486,7 +593,19 @@ export async function resolveConfirmation(
     }
   }
 
-  return { transactions: _transactions, fleetSynced, fleetError, unlinked: res.unlinked }
+  let quotaError: string | undefined
+  if (txn.meritsDeducted > 0 && isFleetQuotaPrivilege(txn.privilegeId) && txn.cadetName) {
+    const q = await pushQuotasForCadet({ id: txn.cadetId, name: txn.cadetName })
+    if (!q.ok) quotaError = q.error
+  }
+
+  return {
+    transactions: _transactions,
+    fleetSynced,
+    fleetError,
+    unlinked: res.unlinked,
+    quotaError,
+  }
 }
 
 /**
@@ -502,6 +621,7 @@ export async function deleteTransaction(
   restored: number
   fleetSynced: boolean
   fleetError?: string
+  quotaError?: string
 }> {
   const res = await ms.deleteTransactionRemote(id, password)
   if (!res.ok) {
@@ -533,5 +653,11 @@ export async function deleteTransaction(
     }
   }
 
-  return { ok: true, restored: res.restored, fleetSynced, fleetError }
+  let quotaError: string | undefined
+  if (res.restored > 0 && isFleetQuotaPrivilege(txn.privilegeId) && txn.cadetName) {
+    const q = await pushQuotasForCadet({ id: txn.cadetId, name: txn.cadetName })
+    if (!q.ok) quotaError = q.error
+  }
+
+  return { ok: true, restored: res.restored, fleetSynced, fleetError, quotaError }
 }

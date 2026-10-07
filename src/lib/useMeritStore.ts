@@ -3,6 +3,7 @@ import {
   loadPrivileges,
   loadTransactions,
   loadCadets,
+  loadSemester,
   subscribe,
   hydrateStore,
   isSharedBackendActive,
@@ -26,6 +27,7 @@ export function useMeritStore() {
   const [privileges, setPrivileges] = useState<Privilege[]>([])
   const [transactions, setTransactions] = useState<Transaction[]>([])
   const [cadets, setCadets] = useState<Cadet[]>([])
+  const [semester, setSemester] = useState<{ start: string; end: string } | null>(null)
   const [ready, setReady] = useState(false)
   const [backend, setBackend] = useState(false)
   const [error, setError] = useState('')
@@ -39,6 +41,7 @@ export function useMeritStore() {
       setPrivileges(loadPrivileges())
       setTransactions(loadTransactions())
       setCadets(loadCadets())
+      setSemester(loadSemester())
       setBackend(isSharedBackendActive())
       setError(getStoreError())
       setReady(isHydrated())
@@ -54,5 +57,5 @@ export function useMeritStore() {
     }
   }, [status])
 
-  return { privileges, transactions, cadets, ready, backend, error }
+  return { privileges, transactions, cadets, semester, ready, backend, error }
 }

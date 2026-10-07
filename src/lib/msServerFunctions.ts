@@ -42,7 +42,7 @@ function isoDate(v: unknown, label: string): string {
   return s
 }
 
-const PRIV_COLS = 'id,name,cost,type,active,unit_label'
+const PRIV_COLS = 'id,name,cost,type,active,unit_label,quota_limit,quota_period,entry_max'
 
 const privilegeFromRow = (r: Row): Privilege => ({
   id: String(r.id),
@@ -51,6 +51,9 @@ const privilegeFromRow = (r: Row): Privilege => ({
   type: String(r.type) as PrivilegeType,
   active: r.active !== false,
   unitLabel: r.unit_label == null ? '' : String(r.unit_label),
+  quotaLimit: r.quota_limit == null ? null : Number(r.quota_limit),
+  quotaPeriod: r.quota_period === 'month' || r.quota_period === 'semester' ? r.quota_period : null,
+  entryMax: r.entry_max == null ? null : Number(r.entry_max),
 })
 
 const cadetFromRow = (r: Row): Cadet => ({
@@ -180,8 +183,9 @@ export const fetchAllServer = createServerFn({ method: 'GET' })
   .handler(async () => {
     const sb = await db()
 
-    const [privRes, cadetRows, txnRows] = await Promise.all([
+    const [privRes, setRes, cadetRows, txnRows] = await Promise.all([
       sb.from('ms_privileges').select(PRIV_COLS).order('name'),
+      sb.from('ms_settings').select('key,value'),
       fetchAllRows((from, to) =>
         sb
           .from('ms_cadets')
@@ -200,8 +204,16 @@ export const fetchAllServer = createServerFn({ method: 'GET' })
       ),
     ])
     if (privRes.error) fail(privRes.error.message)
+    if (setRes.error) fail(setRes.error.message)
+
+    const setting = (k: string) =>
+      (setRes.data ?? []).find((r) => r.key === k)?.value as string | undefined
+    const semStart = setting('semester_start')
+    const semEnd = setting('semester_end')
 
     return {
+      semester:
+        semStart && semEnd ? { start: String(semStart), end: String(semEnd) } : null,
       privileges: (privRes.data ?? []).map(privilegeFromRow),
       cadets: cadetRows.map(cadetFromRow),
       transactions: txnRows.map(txnFromRow),
@@ -475,6 +487,9 @@ export const savePrivilegeServer = createServerFn({ method: 'POST' })
       type: PrivilegeType
       unitLabel?: string
       active?: boolean
+      quotaLimit?: number | null
+      quotaPeriod?: 'month' | 'semester' | null
+      entryMax?: number | null
     }) => d,
   )
   .handler(async ({ data }) => {
@@ -487,6 +502,29 @@ export const savePrivilegeServer = createServerFn({ method: 'POST' })
       data.type === 'ACCOUNTABILITY'
         ? text(data.unitLabel, 'Unit label', 60, false) || 'Quantity'
         : null
+
+    const quotaProvided =
+      data.quotaLimit !== undefined ||
+      data.quotaPeriod !== undefined ||
+      data.entryMax !== undefined
+
+    // Quotas only apply to accountability privileges. Blank limit = no limit.
+    let quotaLimit: number | null = null
+    let quotaPeriod: 'month' | 'semester' | null = null
+    let entryMax: number | null = null
+    if (data.type === 'ACCOUNTABILITY') {
+      if (data.quotaLimit != null) {
+        quotaLimit = amount(data.quotaLimit, 'Quota')
+        if (data.quotaPeriod !== 'month' && data.quotaPeriod !== 'semester') {
+          fail('Choose the quota period (month or semester).')
+        }
+        quotaPeriod = data.quotaPeriod
+      }
+      if (data.entryMax != null) {
+        entryMax = amount(data.entryMax, 'Max per entry')
+        if (entryMax <= 0) fail('Max per entry must be more than 0.')
+      }
+    }
 
     const sb = await db()
     const { data: all, error: listErr } = await sb.from('ms_privileges').select('id,name')
@@ -504,6 +542,12 @@ export const savePrivilegeServer = createServerFn({ method: 'POST' })
         type: data.type,
         unit_label: unitLabel,
         updated_at: new Date().toISOString(),
+      }
+      // Leave quotas alone on updates that don't mention them (e.g. enable/disable).
+      if (quotaProvided || data.type === 'REGULAR') {
+        patch.quota_limit = quotaLimit
+        patch.quota_period = quotaPeriod
+        patch.entry_max = entryMax
       }
       if (typeof data.active === 'boolean') patch.active = data.active
       const { data: rows, error } = await sb
@@ -523,7 +567,17 @@ export const savePrivilegeServer = createServerFn({ method: 'POST' })
 
     const { data: rows, error } = await sb
       .from('ms_privileges')
-      .insert({ id, name, cost, type: data.type, unit_label: unitLabel, active: true })
+      .insert({
+        id,
+        name,
+        cost,
+        type: data.type,
+        unit_label: unitLabel,
+        active: true,
+        quota_limit: quotaLimit,
+        quota_period: quotaPeriod,
+        entry_max: entryMax,
+      })
       .select(PRIV_COLS)
     if (error) fail(error.message)
     return privilegeFromRow(rows![0])
@@ -556,6 +610,25 @@ export const deletePrivilegeServer = createServerFn({ method: 'POST' })
     if (error) fail(error.message)
     if (!rows?.length) fail('Privilege not found.')
     return { ok: true }
+  })
+
+export const saveSemesterServer = createServerFn({ method: 'POST' })
+  .middleware([adminMiddleware])
+  .inputValidator((d: { start: string; end: string }) => d)
+  .handler(async ({ data }) => {
+    const start = isoDate(data.start, 'Semester start')
+    const end = isoDate(data.end, 'Semester end')
+    if (end < start) fail('The semester end date must be on or after the start date.')
+    const sb = await db()
+    const { error } = await sb.from('ms_settings').upsert(
+      [
+        { key: 'semester_start', value: start },
+        { key: 'semester_end', value: end },
+      ],
+      { onConflict: 'key' },
+    )
+    if (error) fail(error.message)
+    return { start, end }
   })
 
 /* =========================================================

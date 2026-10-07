@@ -8,6 +8,7 @@ import {
   deleteTransactionServer,
   savePrivilegeServer,
   deletePrivilegeServer,
+  saveSemesterServer,
   addCadetServer,
   updateCadetServer,
   deleteCadetServer,
@@ -49,7 +50,13 @@ export const savePrivilegeRemote = (input: {
   type: Privilege['type']
   unitLabel?: string
   active?: boolean
+  quotaLimit?: number | null
+  quotaPeriod?: 'month' | 'semester' | null
+  entryMax?: number | null
 }): Promise<Privilege> => savePrivilegeServer({ data: input })
+
+export const saveSemesterRemote = (start: string, end: string) =>
+  saveSemesterServer({ data: { start, end } })
 
 export const deletePrivilegeRemote = (id: string) => deletePrivilegeServer({ data: { id } })
 
