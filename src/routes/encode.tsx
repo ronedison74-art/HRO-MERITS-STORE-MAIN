@@ -3,7 +3,8 @@ import { useMemo, useState } from 'react'
 import { AppShell } from '@/components/AppShell'
 import { CadetPicker } from '@/components/CadetPicker'
 import { LowBalanceNote } from '@/components/LowBalanceNote'
-import { lowBalanceWarning } from '@/lib/rules'
+import { QuotaNote } from '@/components/QuotaNote'
+import { lowBalanceWarning, evaluateQuota } from '@/lib/rules'
 import { useToast } from '@/components/Toast'
 import { useMeritStore } from '@/lib/useMeritStore'
 import {
@@ -42,7 +43,7 @@ function makeRow(): BulkRow {
 }
 
 function Encode() {
-  const { privileges: allPrivileges, cadets, transactions, ready } = useMeritStore()
+  const { privileges: allPrivileges, cadets, transactions, semester, ready } = useMeritStore()
   const privileges = useMemo(() => allPrivileges.filter((p) => p.active), [allPrivileges])
   const { show } = useToast()
 
@@ -88,6 +89,29 @@ function Encode() {
     const cadet = cadets.find((c) => c.id === id)
     if (!cadet) return null
     return lowBalanceWarning(cadet.availableMerits, pendingByCadet.get(id) ?? 0, needed)
+  }
+
+  /** ED / demerit quota check for one entry (warn only). */
+  function quotaFor(
+    id: string,
+    name: string,
+    qty: string,
+    alsoInBatch = 0,
+  ) {
+    if (!selectedPrivilege || selectedPrivilege.type !== 'ACCOUNTABILITY') return null
+    if (!id && !name.trim()) return null
+    const n = qty.trim() === '' ? null : Number(qty)
+    return evaluateQuota({
+      rule: selectedPrivilege,
+      privilegeId: selectedPrivilege.id,
+      cadetId: id,
+      cadetName: name,
+      quantity: n != null && Number.isFinite(n) ? n : null,
+      alsoInBatch,
+      availmentDate,
+      semester,
+      transactions,
+    })
   }
 
   const computedTotal =
@@ -328,6 +352,10 @@ function Encode() {
                       ? `Total = ${quantity} × ${meritCost} = ${computedTotal} merits`
                       : `Total = quantity × rate`}
                   </span>
+                  {(() => {
+                    const q = quotaFor(cadetId, cadetName, quantity)
+                    return q ? <QuotaNote result={q} /> : null
+                  })()}
                 </div>
               )}
 
@@ -487,6 +515,22 @@ function Encode() {
                                 : meritCost
                             const w = warningFor(row.cadetId, needed)
                             return w ? <LowBalanceNote warning={w} /> : null
+                          })()}
+                          {(() => {
+                            // Other rows in this same submit for the same cadet also use up the quota.
+                            const others = rows
+                              .filter(
+                                (r) =>
+                                  r.key !== row.key &&
+                                  ((row.cadetId && r.cadetId === row.cadetId) ||
+                                    (!row.cadetId &&
+                                      row.cadetName.trim() !== '' &&
+                                      r.cadetName.trim().toLowerCase() ===
+                                        row.cadetName.trim().toLowerCase())),
+                              )
+                              .reduce((sum, r) => sum + (Number(r.quantity) || 0), 0)
+                            const q = quotaFor(row.cadetId, row.cadetName, row.quantity, others)
+                            return q ? <QuotaNote result={q} /> : null
                           })()}
                         </td>
                         {isAccountability && (

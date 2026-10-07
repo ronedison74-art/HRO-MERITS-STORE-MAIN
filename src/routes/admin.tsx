@@ -6,12 +6,14 @@ import { useToast } from '@/components/Toast'
 import { useMeritStore } from '@/lib/useMeritStore'
 import { useAuth } from '@/lib/auth'
 import { PrivilegeManager } from '@/components/PrivilegeManager'
+import { SemesterSettings } from '@/components/SemesterSettings'
 import { listUsers, saveUser, type MsUser } from '@/lib/msClient'
 import {
   addCadet,
   updateCadet,
   deleteCadet,
   syncCadetsFromFleet,
+  pushAllQuotasToFleet,
   importCadetsBulk,
   BATCHES,
   DEFAULT_AVAILABLE_MERITS,
@@ -26,7 +28,7 @@ export const Route = createFileRoute('/admin')({
 const PAGE_SIZE = 20
 
 function Admin() {
-  const { privileges, cadets, ready } = useMeritStore()
+  const { privileges, cadets, semester, ready } = useMeritStore()
   const { show } = useToast()
   const { email: myEmail } = useAuth()
 
@@ -37,6 +39,7 @@ function Admin() {
   const [newUserRole, setNewUserRole] = useState<'admin' | 'encoder'>('encoder')
   const [userBusy, setUserBusy] = useState(false)
   const [syncing, setSyncing] = useState(false)
+  const [pushingQuotas, setPushingQuotas] = useState(false)
 
   const [newName, setNewName] = useState('')
   const [newBatch, setNewBatch] = useState<string>(BATCHES[0])
@@ -298,6 +301,28 @@ function Admin() {
             }}
           >
             {syncing ? 'Syncing…' : '↻ Sync from Fleet Merits'}
+          </button>
+          <button
+            type="button"
+            className="sub-btn ghost"
+            disabled={pushingQuotas}
+            title="Writes each cadet's ED used this month and DR used this semester into Fleet's Quota ED / Quota DR"
+            onClick={async () => {
+              setPushingQuotas(true)
+              try {
+                const r = await pushAllQuotasToFleet()
+                show(
+                  `Fleet quotas updated for ${r.updated} cadet${r.updated === 1 ? '' : 's'} (${r.unchanged} already correct${r.notInFleet ? `, ${r.notInFleet} not found in Fleet` : ''}).`,
+                  'ok',
+                )
+              } catch (e: any) {
+                show(e?.message || 'Could not update Fleet quotas.', 'bad')
+              } finally {
+                setPushingQuotas(false)
+              }
+            }}
+          >
+            {pushingQuotas ? 'Sending…' : '↑ Push quotas to Fleet'}
           </button>
           <span className="field-hint">
             Loads live cadets + balances. Total local roster: {cadets.length}
@@ -642,6 +667,7 @@ function Admin() {
       </div>
 
       <PrivilegeManager privileges={privileges} ready={ready} />
+      <SemesterSettings semester={semester} />
 
       <div className="card" style={{ marginTop: 24 }}>
         <div className="card-title" style={{ marginBottom: 4 }}>
