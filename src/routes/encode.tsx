@@ -2,6 +2,8 @@ import { createFileRoute } from '@tanstack/react-router'
 import { useMemo, useState } from 'react'
 import { AppShell } from '@/components/AppShell'
 import { CadetPicker } from '@/components/CadetPicker'
+import { LowBalanceNote } from '@/components/LowBalanceNote'
+import { lowBalanceWarning } from '@/lib/rules'
 import { useToast } from '@/components/Toast'
 import { useMeritStore } from '@/lib/useMeritStore'
 import {
@@ -40,7 +42,8 @@ function makeRow(): BulkRow {
 }
 
 function Encode() {
-  const { privileges, cadets, ready } = useMeritStore()
+  const { privileges: allPrivileges, cadets, transactions, ready } = useMeritStore()
+  const privileges = useMemo(() => allPrivileges.filter((p) => p.active), [allPrivileges])
   const { show } = useToast()
 
   const [mode, setMode] = useState<Mode>('single')
@@ -67,6 +70,25 @@ function Encode() {
   const isAccountability = selectedPrivilege?.type === 'ACCOUNTABILITY'
   /** REGULAR = fixed cost; ACCOUNTABILITY = rate (merits per unit). Locked to the Admin-set value. */
   const meritCost = selectedPrivilege?.cost ?? 0
+
+  // Merits already promised by each cadet's Pending entries (not deducted until confirmed).
+  const pendingByCadet = useMemo(() => {
+    const m = new Map<string, number>()
+    for (const t of transactions) {
+      if (t.status === 'Pending' && t.cadetId) {
+        m.set(t.cadetId, (m.get(t.cadetId) ?? 0) + t.meritCost)
+      }
+    }
+    return m
+  }, [transactions])
+
+  /** Low-balance warning for a roster cadet; null when fine or unknown (typed-in names have no balance). */
+  function warningFor(id: string, needed: number | null) {
+    if (!id) return null
+    const cadet = cadets.find((c) => c.id === id)
+    if (!cadet) return null
+    return lowBalanceWarning(cadet.availableMerits, pendingByCadet.get(id) ?? 0, needed)
+  }
 
   const computedTotal =
     isAccountability && quantity && !Number.isNaN(Number(quantity))
@@ -242,6 +264,15 @@ function Encode() {
                     setBatch(next.batch)
                   }}
                 />
+                {(() => {
+                  const needed = !selectedPrivilege
+                    ? null
+                    : isAccountability
+                      ? computedTotal
+                      : meritCost
+                  const w = warningFor(cadetId, needed)
+                  return w ? <LowBalanceNote warning={w} /> : null
+                })()}
               </div>
               <div className="field">
                 <label htmlFor="privilege">Privilege</label>
@@ -448,6 +479,15 @@ function Encode() {
                             onChange={(next) => updateRow(row.key, next)}
                             placeholder="Search cadet…"
                           />
+                          {(() => {
+                            const needed = !selectedPrivilege
+                              ? null
+                              : isAccountability
+                                ? est
+                                : meritCost
+                            const w = warningFor(row.cadetId, needed)
+                            return w ? <LowBalanceNote warning={w} /> : null
+                          })()}
                         </td>
                         {isAccountability && (
                           <td>

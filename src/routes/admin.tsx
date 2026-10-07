@@ -2,14 +2,12 @@ import { createFileRoute } from '@tanstack/react-router'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import * as XLSX from 'xlsx'
 import { AppShell } from '@/components/AppShell'
-import { TypeBadge } from '@/components/Badges'
 import { useToast } from '@/components/Toast'
 import { useMeritStore } from '@/lib/useMeritStore'
 import { useAuth } from '@/lib/auth'
+import { PrivilegeManager } from '@/components/PrivilegeManager'
 import { listUsers, saveUser, type MsUser } from '@/lib/msClient'
 import {
-  updatePrivilegeCost,
-  noConfirmationRuleLabel,
   addCadet,
   updateCadet,
   deleteCadet,
@@ -31,7 +29,6 @@ function Admin() {
   const { privileges, cadets, ready } = useMeritStore()
   const { show } = useToast()
   const { email: myEmail } = useAuth()
-  const [drafts, setDrafts] = useState<Record<string, number>>({})
 
   // Users & roles
   const [users, setUsers] = useState<MsUser[] | null>(null)
@@ -58,29 +55,6 @@ function Admin() {
   const fileRef = useRef<HTMLInputElement>(null)
   const [importDefaultBatch, setImportDefaultBatch] = useState<string>(BATCHES[0])
   const [importing, setImporting] = useState(false)
-
-  function draftFor(id: string, cost: number) {
-    return drafts[id] ?? cost
-  }
-
-  async function handleSavePrivilege(id: string, name: string) {
-    const cost = drafts[id]
-    if (cost === undefined || Number.isNaN(cost) || cost < 0) {
-      show('Enter a valid merit cost / rate.', 'bad')
-      return
-    }
-    try {
-      await updatePrivilegeCost(id, cost)
-      setDrafts((prev) => {
-        const next = { ...prev }
-        delete next[id]
-        return next
-      })
-      show(`${name} updated to ${cost}.`, 'ok')
-    } catch (e: any) {
-      show(e?.message || 'Could not save the cost.', 'bad')
-    }
-  }
 
   async function handleAddCadet(e: React.FormEvent) {
     e.preventDefault()
@@ -667,69 +641,8 @@ function Admin() {
         })}
       </div>
 
-      <div className="card">
-        <div className="card-title" style={{ marginBottom: 4 }}>
-          Privilege Costs / Rates
-        </div>
-        <div className="field-hint" style={{ marginBottom: 16 }}>
-          <strong>Regular</strong> = fixed merit cost. <strong>Accountability</strong> = rate
-          (merits per unit).
-        </div>
+      <PrivilegeManager privileges={privileges} ready={ready} />
 
-        <div className="table-wrap">
-          <table className="ms-table">
-            <thead>
-              <tr>
-                <th>Privilege</th>
-                <th>Cost / Rate</th>
-                <th>Type</th>
-                <th>No Confirmation Rule</th>
-                <th></th>
-              </tr>
-            </thead>
-            <tbody>
-              {privileges.map((p) => {
-                const dirty = drafts[p.id] !== undefined && drafts[p.id] !== p.cost
-                const isRate = p.type === 'ACCOUNTABILITY'
-                return (
-                  <tr key={p.id}>
-                    <td>{p.name}</td>
-                    <td style={{ maxWidth: 160 }}>
-                      <input
-                        type="number"
-                        min={0}
-                        step={1}
-                        value={draftFor(p.id, p.cost)}
-                        onChange={(e) =>
-                          setDrafts((prev) => ({ ...prev, [p.id]: Number(e.target.value) }))
-                        }
-                      />
-                      <div className="field-hint" style={{ marginTop: 4 }}>
-                        {isRate ? 'Rate (merits per unit)' : 'Fixed merit cost'}
-                      </div>
-                    </td>
-                    <td>
-                      <TypeBadge type={p.type} />
-                    </td>
-                    <td>{noConfirmationRuleLabel(p.type)}</td>
-                    <td>
-                      <button
-                        type="button"
-                        className="sub-btn blue sm"
-                        disabled={!dirty}
-                        onClick={() => handleSavePrivilege(p.id, p.name)}
-                      >
-                        Save
-                      </button>
-                    </td>
-                  </tr>
-                )
-              })}
-            </tbody>
-          </table>
-          {!ready && <div className="ms-empty">Loading configuration…</div>}
-        </div>
-      </div>
       <div className="card" style={{ marginTop: 24 }}>
         <div className="card-title" style={{ marginBottom: 4 }}>
           Users &amp; Roles
