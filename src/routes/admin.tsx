@@ -14,6 +14,7 @@ import {
   deleteCadet,
   syncCadetsFromFleet,
   pushAllQuotasToFleet,
+  isFleetQuotaPushEnabled,
   importCadetsBulk,
   BATCHES,
   DEFAULT_AVAILABLE_MERITS,
@@ -302,6 +303,7 @@ function Admin() {
           >
             {syncing ? 'Syncing…' : '↻ Sync from Fleet Merits'}
           </button>
+          {isFleetQuotaPushEnabled() && (
           <button
             type="button"
             className="sub-btn ghost"
@@ -324,6 +326,7 @@ function Admin() {
           >
             {pushingQuotas ? 'Sending…' : '↑ Push quotas to Fleet'}
           </button>
+          )}
           <span className="field-hint">
             Loads live cadets + balances. Total local roster: {cadets.length}
           </span>

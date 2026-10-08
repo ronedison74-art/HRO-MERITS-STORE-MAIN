@@ -21,7 +21,17 @@ create table if not exists public.ms_privileges (
   name       text not null,
   cost       numeric not null default 0 check (cost >= 0),
   type       text not null check (type in ('REGULAR', 'ACCOUNTABILITY')),
+  active     boolean not null default true,
+  unit_label text,
+  quota_limit  numeric check (quota_limit is null or quota_limit >= 0),
+  quota_period text    check (quota_period is null or quota_period in ('month', 'semester')),
+  entry_max    numeric check (entry_max is null or entry_max > 0),
   updated_at timestamptz not null default now()
+);
+
+create table if not exists public.ms_settings (
+  key   text primary key,
+  value text not null
 );
 
 -- ── Cadets ──────────────────────────────────────────────────────────────────
@@ -87,29 +97,30 @@ $$;
 
 -- ── Lock everything down ────────────────────────────────────────────────────
 alter table public.ms_users        enable row level security;
+alter table public.ms_settings     enable row level security;
 alter table public.ms_privileges   enable row level security;
 alter table public.ms_cadets       enable row level security;
 alter table public.ms_transactions enable row level security;
 
-revoke all on public.ms_users, public.ms_privileges, public.ms_cadets, public.ms_transactions
+revoke all on public.ms_users, public.ms_settings, public.ms_privileges, public.ms_cadets, public.ms_transactions
   from anon, authenticated;
 revoke all on sequence public.ms_cadet_seq, public.ms_txn_seq from anon, authenticated;
 revoke execute on function public.ms_adjust_merits(text, numeric) from public, anon, authenticated;
 grant  execute on function public.ms_adjust_merits(text, numeric) to service_role;
 
 -- ── Default privileges ──────────────────────────────────────────────────────
-insert into public.ms_privileges (id, name, cost, type) values
-  ('phone',               'Phone',               10, 'REGULAR'),
-  ('food-delivery',       'Food Delivery',       10, 'REGULAR'),
-  ('group-food-delivery', 'Group Food Delivery', 15, 'REGULAR'),
-  ('liberty',             'Liberty',             25, 'REGULAR'),
-  ('reduce-ed',           'Reduce ED',            2, 'ACCOUNTABILITY'),
-  ('offset-demerits',     'Offset Demerits',      2, 'ACCOUNTABILITY')
+insert into public.ms_privileges (id, name, cost, type, unit_label, quota_limit, quota_period, entry_max) values
+  ('phone',               'Phone',               10, 'REGULAR',        null,                 null, null,       null),
+  ('food-delivery',       'Food Delivery',       10, 'REGULAR',        null,                 null, null,       null),
+  ('group-food-delivery', 'Group Food Delivery', 15, 'REGULAR',        null,                 null, null,       null),
+  ('liberty',             'Liberty',             25, 'REGULAR',        null,                 null, null,       null),
+  ('reduce-ed',           'Reduce ED',            2, 'ACCOUNTABILITY', 'ED Hours to Reduce', 20,   'month',    null),
+  ('offset-demerits',     'Offset Demerits',      2, 'ACCOUNTABILITY', 'Demerits to Offset', 30,   'semester', 15)
 on conflict (id) do nothing;
 
 -- ── FIRST ADMIN ─────────────────────────────────────────────────────────────
 -- Replace with YOUR email (lowercase), then run. After the first admin signs in
 -- they can add everyone else from the Admin page → Users & Roles.
 insert into public.ms_users (email, role)
-values ('ronedison74@gmail.com', 'admin')
+values ('REPLACE_WITH_YOUR_EMAIL@example.com', 'admin')
 on conflict (email) do nothing;

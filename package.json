@@ -6,7 +6,7 @@
     "dev": "vite dev --port 3000",
     "build": "vite build && tsc --noEmit",
     "preview": "vite preview",
-    "test": "node --test tests/rules.test.ts"
+    "test": "node --test tests/rules.test.ts tests/quota.test.ts"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.49.1",

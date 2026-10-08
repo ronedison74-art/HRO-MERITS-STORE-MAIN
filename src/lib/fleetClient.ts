@@ -222,3 +222,57 @@ export async function fetchCadetActivity(cadetName: string, limit = 30): Promise
   if (error) throw new Error(error.message)
   return (data ?? []) as FleetMeritEntry[]
 }
+
+const QUOTA_BLOCKED =
+  "Fleet Merits didn't allow Merit Store to update its quota numbers. The owner of the Fleet database needs to allow it (see README → Fleet quotas)."
+
+export type FleetQuotaPatch = { quota_ed?: number; quota_dr?: number }
+
+/** Set Quota ED / Quota DR on one Fleet cadet (matched by exact name). */
+export async function updateFleetQuotasByName(
+  name: string,
+  patch: FleetQuotaPatch,
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  const db = getFleetClient()
+  const { data: found, error: fErr } = await db
+    .from('cadets')
+    .select('id')
+    .eq('name', name.trim())
+    .limit(1)
+  if (fErr) return { ok: false, error: fErr.message }
+  if (!found?.length) {
+    return {
+      ok: false,
+      error: `"${name}" is not in Fleet Merits cadets. Admin → Sync from Fleet Merits first.`,
+    }
+  }
+  const { data, error } = await db
+    .from('cadets')
+    .update(patch)
+    .eq('id', (found[0] as any).id)
+    .select('id')
+  if (error) return { ok: false, error: error.message }
+  // With row-level security, a blocked update succeeds but changes 0 rows.
+  if (!data?.length) return { ok: false, error: QUOTA_BLOCKED }
+  return { ok: true }
+}
+
+/** Bulk version (by Fleet cadet id). Throws on the first failure. */
+export async function updateFleetQuotasById(
+  updates: { id: number; patch: FleetQuotaPatch }[],
+): Promise<{ updated: number }> {
+  const db = getFleetClient()
+  let updated = 0
+  for (let i = 0; i < updates.length; i += 10) {
+    const chunk = updates.slice(i, i + 10)
+    const results = await Promise.all(
+      chunk.map((u) => db.from('cadets').update(u.patch).eq('id', u.id).select('id')),
+    )
+    for (const r of results) {
+      if (r.error) throw new Error(r.error.message)
+      if (!r.data?.length) throw new Error(QUOTA_BLOCKED)
+      updated++
+    }
+  }
+  return { updated }
+}

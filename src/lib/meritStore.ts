@@ -252,6 +252,15 @@ function setLocalBalance(cadetId: string, balance: number | null) {
 
 // ── Fleet quotas (Fleet's "Quota ED" / "Quota DR" = units used so far) ─────
 
+/**
+ * Writing quotas INTO Fleet's database only works if Fleet's database allows it, so it is
+ * OFF by default. (Fleet's card normally reads quotas from Merit Store's /quota endpoint instead.)
+ * Turn on with VITE_PUSH_FLEET_QUOTAS=true.
+ */
+export function isFleetQuotaPushEnabled(): boolean {
+  return (import.meta as any).env?.VITE_PUSH_FLEET_QUOTAS === 'true'
+}
+
 /** Which privilege feeds which Fleet field. */
 const FLEET_QUOTA_IDS = { ed: 'reduce-ed', dr: 'offset-demerits' } as const
 
@@ -594,7 +603,12 @@ export async function resolveConfirmation(
   }
 
   let quotaError: string | undefined
-  if (txn.meritsDeducted > 0 && isFleetQuotaPrivilege(txn.privilegeId) && txn.cadetName) {
+  if (
+    isFleetQuotaPushEnabled() &&
+    txn.meritsDeducted > 0 &&
+    isFleetQuotaPrivilege(txn.privilegeId) &&
+    txn.cadetName
+  ) {
     const q = await pushQuotasForCadet({ id: txn.cadetId, name: txn.cadetName })
     if (!q.ok) quotaError = q.error
   }
@@ -654,7 +668,12 @@ export async function deleteTransaction(
   }
 
   let quotaError: string | undefined
-  if (res.restored > 0 && isFleetQuotaPrivilege(txn.privilegeId) && txn.cadetName) {
+  if (
+    isFleetQuotaPushEnabled() &&
+    res.restored > 0 &&
+    isFleetQuotaPrivilege(txn.privilegeId) &&
+    txn.cadetName
+  ) {
     const q = await pushQuotasForCadet({ id: txn.cadetId, name: txn.cadetName })
     if (!q.ok) quotaError = q.error
   }

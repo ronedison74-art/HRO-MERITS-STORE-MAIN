@@ -68,15 +68,18 @@ function Records() {
         show(result.error || 'Remove failed.', 'bad')
         return
       }
+      const quotaNote = result.quotaError
+        ? ` Fleet quota not updated: ${result.quotaError}`
+        : ''
       if (result.restored > 0) {
         if (result.fleetSynced) {
           show(
-            `${id} removed. ${result.restored} merits returned locally and on Fleet Lookup.`,
-            'ok',
+            `${id} removed. ${result.restored} merits returned locally and on Fleet Lookup.${quotaNote}`,
+            result.quotaError ? 'bad' : 'ok',
           )
         } else {
           show(
-            `${id} removed and ${result.restored} merits returned locally, but Lookup credit failed: ${result.fleetError || 'unknown'}`,
+            `${id} removed and ${result.restored} merits returned locally, but Lookup credit failed: ${result.fleetError || 'unknown'}${quotaNote}`,
             'bad',
           )
         }

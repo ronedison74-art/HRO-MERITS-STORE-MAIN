@@ -128,6 +128,9 @@ function Confirm() {
     setBusyId(id)
     try {
       const result = await resolveConfirmation(id, outcome, todayISO())
+      const quotaNote = result.quotaError
+        ? ` Fleet quota not updated: ${result.quotaError}`
+        : ''
       const unlinkedNote = result.unlinked
         ? ' No roster cadet matched this name, so no balance was deducted.'
         : ''
@@ -135,9 +138,9 @@ function Confirm() {
       if (outcome === 'granted') {
         show(
           result.fleetSynced
-            ? `${id} Granted — ${txn?.meritCost ?? 0} merits deducted.${unlinkedNote}`
-            : `${id} Granted and saved, but the Fleet Lookup sync failed: ${result.fleetError || 'error'}${unlinkedNote}`,
-          result.fleetSynced && !result.unlinked ? 'ok' : 'bad',
+            ? `${id} Granted — ${txn?.meritCost ?? 0} merits deducted.${unlinkedNote}${quotaNote}`
+            : `${id} Granted and saved, but the Fleet Lookup sync failed: ${result.fleetError || 'error'}${unlinkedNote}${quotaNote}`,
+          result.fleetSynced && !result.unlinked && !result.quotaError ? 'ok' : 'bad',
         )
       } else if (outcome === 'invalid') {
         show(`${id} Invalid — no deduction, no availment (not allowed).`, 'bad')
@@ -147,8 +150,8 @@ function Confirm() {
         if (willDeduct && txn) {
           show(
             result.fleetSynced
-              ? `${id} Not Granted — ${txn.meritCost} deducted (violation).${unlinkedNote}`
-              : `${id} resolved and saved, but the Fleet Lookup sync failed: ${result.fleetError || 'error'}`,
+              ? `${id} Not Granted — ${txn.meritCost} deducted (violation).${unlinkedNote}${quotaNote}`
+              : `${id} resolved and saved, but the Fleet Lookup sync failed: ${result.fleetError || 'error'}${quotaNote}`,
             'bad',
           )
         } else {
@@ -195,7 +198,7 @@ function Confirm() {
       for (const id of ids) {
         try {
           const result = await resolveConfirmation(id, outcome, todayISO())
-          if (outcome === 'granted' && !result.fleetSynced) fail++
+          if (outcome === 'granted' && (!result.fleetSynced || result.quotaError)) fail++
           else ok++
         } catch {
           fail++
