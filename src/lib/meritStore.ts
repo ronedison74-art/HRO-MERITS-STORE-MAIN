@@ -454,7 +454,7 @@ export async function syncCadetsFromFleet(): Promise<{ count: number }> {
     id: String(r.id),
     name: r.name,
     batch: r.batch != null ? String(r.batch) : BATCHES[0],
-    availableMerits: balances.get(r.name) ?? 0,
+    availableMerits: balances.get(r.name.trim().toLowerCase()) ?? 0,
   }))
 
   const res = await ms.syncCadetsRemote(mapped)

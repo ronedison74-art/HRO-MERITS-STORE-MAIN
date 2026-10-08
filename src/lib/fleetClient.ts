@@ -4,6 +4,7 @@
  */
 
 import { createClient, type SupabaseClient } from '@supabase/supabase-js'
+import { fetchAllPages } from './paginate'
 
 const FLEET_URL =
   (typeof import.meta !== 'undefined' && (import.meta as any).env?.VITE_FLEET_SUPABASE_URL) ||
@@ -56,14 +57,16 @@ export function isFleetConfigured(): boolean {
 
 export async function fetchFleetCadets(): Promise<FleetCadetRow[]> {
   const db = getFleetClient()
-  const { data, error } = await db
-    .from('cadets')
-    .select('id,name,batch,team,quota_dr,quota_ed')
-    .not('batch', 'is', null)
-    .not('name', 'ilike', '[DELETED%')
-    .order('name', { ascending: true })
-  if (error) throw new Error(error.message)
-  return (data ?? []) as FleetCadetRow[]
+  return fetchAllPages<FleetCadetRow>((from, to) =>
+    db
+      .from('cadets')
+      .select('id,name,batch,team,quota_dr,quota_ed')
+      .not('batch', 'is', null)
+      .not('name', 'ilike', '[DELETED%')
+      .order('name', { ascending: true })
+      .order('id', { ascending: true })
+      .range(from, to) as any,
+  )
 }
 
 export async function searchFleetCadetNames(query: string, limit = 15): Promise<string[]> {
@@ -82,19 +85,23 @@ export async function searchFleetCadetNames(query: string, limit = 15): Promise<
   return (data ?? []).map((r: any) => String(r.name))
 }
 
+/** Net merits per cadet. Keys are lowercase + trimmed names (Fleet matches names ignoring case). */
 export async function fetchFleetBalances(): Promise<Map<string, number>> {
   const db = getFleetClient()
-  const { data, error } = await db
-    .from('merit_entries')
-    .select('cadet_name,merit,availed')
-  if (error) throw new Error(error.message)
+  const rows = await fetchAllPages<any>((from, to) =>
+    db
+      .from('merit_entries')
+      .select('cadet_name,merit,availed')
+      .order('id', { ascending: true })
+      .range(from, to) as any,
+  )
   const map = new Map<string, number>()
-  for (const row of data ?? []) {
-    const name = String((row as any).cadet_name || '')
-    if (!name) continue
-    const merit = Number((row as any).merit) || 0
-    const availed = Number((row as any).availed) || 0
-    map.set(name, (map.get(name) || 0) + merit - availed)
+  for (const row of rows) {
+    const key = String(row.cadet_name || '').trim().toLowerCase()
+    if (!key) continue
+    const merit = Number(row.merit) || 0
+    const availed = Number(row.availed) || 0
+    map.set(key, (map.get(key) || 0) + merit - availed)
   }
   return map
 }
