@@ -106,7 +106,7 @@ export function LoginGate() {
                 />
               </div>
               {error && (
-                <p role="alert" style={{ color: 'var(--red, #c0392b)', margin: '8px 0' }}>
+                <p role="alert" style={{ color: 'var(--bad)', margin: '8px 0' }}>
                   {error}
                 </p>
               )}

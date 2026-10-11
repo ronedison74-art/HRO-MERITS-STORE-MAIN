@@ -678,7 +678,7 @@ function Admin() {
         </div>
         <div className="field-hint" style={{ marginBottom: 12 }}>
           Only emails listed here can sign in (via a one-time email link).{' '}
-          <strong>Admin</strong>: everything. <strong>Encoder</strong>: Encode, Confirm, Records and
+          <strong>Admin</strong>: everything. <strong>Encoder</strong>: Availment, Confirm, Records and
           Reports — no Admin page and no removing records.
         </div>
 
@@ -717,7 +717,7 @@ function Admin() {
         </form>
 
         {usersError && (
-          <p role="alert" style={{ color: 'var(--red, #c0392b)' }}>
+          <p role="alert" style={{ color: 'var(--bad)' }}>
             {usersError}
           </p>
         )}

@@ -138,8 +138,8 @@ function Confirm() {
       if (outcome === 'granted') {
         show(
           result.fleetSynced
-            ? `${id} Granted — ${txn?.meritCost ?? 0} merits deducted.${unlinkedNote}${quotaNote}`
-            : `${id} Granted and saved, but the Fleet Lookup sync failed: ${result.fleetError || 'error'}${unlinkedNote}${quotaNote}`,
+            ? `${id} Logged — ${txn?.meritCost ?? 0} merits deducted.${unlinkedNote}${quotaNote}`
+            : `${id} Logged and saved, but the Fleet Lookup sync failed: ${result.fleetError || 'error'}${unlinkedNote}${quotaNote}`,
           result.fleetSynced && !result.unlinked && !result.quotaError ? 'ok' : 'bad',
         )
       } else if (outcome === 'invalid') {
@@ -150,12 +150,12 @@ function Confirm() {
         if (willDeduct && txn) {
           show(
             result.fleetSynced
-              ? `${id} Not Granted — ${txn.meritCost} deducted (violation).${unlinkedNote}${quotaNote}`
+              ? `${id} Not Logged — ${txn.meritCost} deducted, cadet to be sanctioned.${unlinkedNote}${quotaNote}`
               : `${id} resolved and saved, but the Fleet Lookup sync failed: ${result.fleetError || 'error'}${quotaNote}`,
             'bad',
           )
         } else {
-          show(`${id} Not Granted — cancelled, no deduction.`, 'bad')
+          show(`${id} Not Logged — cancelled, no deduction.`, 'bad')
         }
       }
 
@@ -178,14 +178,10 @@ function Confirm() {
       return
     }
     const label =
-      outcome === 'granted'
-        ? 'Grant'
-        : outcome === 'invalid'
-          ? 'Mark Invalid'
-          : 'Not Grant'
+      outcome === 'granted' ? 'Logged' : outcome === 'invalid' ? 'Invalid' : 'Not Logged'
     if (
       !window.confirm(
-        `${label} ${ids.length} selected pending availment(s)?`,
+        `Mark ${ids.length} selected pending availment(s) as ${label}?`,
       )
     ) {
       return
@@ -273,7 +269,7 @@ function Confirm() {
             disabled={busy || selected.size === 0}
             onClick={() => handleBulk('granted')}
           >
-            Grant selected
+            Mark selected Logged
           </button>
           <button
             type="button"
@@ -281,7 +277,7 @@ function Confirm() {
             disabled={busy || selected.size === 0}
             onClick={() => handleBulk('not-granted')}
           >
-            Not Grant selected
+            Mark selected Not Logged
           </button>
           <button
             type="button"
@@ -472,9 +468,9 @@ function Confirm() {
                                 className="sub-btn ok sm"
                                 disabled={busy}
                                 onClick={() => handleOne(t.id, 'granted')}
-                                title="Granted — deduct merits"
+                                title="Logged — deduct merits"
                               >
-                                {rowBusy ? '…' : 'Granted'}
+                                {rowBusy ? '…' : 'Logged'}
                               </button>
                               <button
                                 type="button"
@@ -483,11 +479,11 @@ function Confirm() {
                                 onClick={() => handleOne(t.id, 'not-granted')}
                                 title={
                                   deductOnNo
-                                    ? `Not Granted still deducts ${t.meritCost} + violation`
-                                    : 'Not Granted — no deduction'
+                                    ? `Not Logged still deducts ${t.meritCost}, and the cadet is sanctioned`
+                                    : 'Not Logged — no deduction'
                                 }
                               >
-                                {rowBusy ? '…' : 'Not Granted'}
+                                {rowBusy ? '…' : 'Not Logged'}
                               </button>
                               <button
                                 type="button"

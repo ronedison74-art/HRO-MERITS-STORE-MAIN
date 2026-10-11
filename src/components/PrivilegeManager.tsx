@@ -274,7 +274,7 @@ export function PrivilegeManager({ privileges, ready }: { privileges: Privilege[
         <strong>Regular</strong> = fixed merit cost. <strong>Accountability</strong> = rate (merits per
         unit). Changing a name, cost or type only affects <em>new</em> entries — existing records,
         including ones still Pending, keep what they were encoded with. A privilege that was ever used
-        can't be deleted; disable it instead (it disappears from Encode but history stays).
+        can't be deleted; disable it instead (it disappears from the Availment page but history stays).
       </div>
 
       <form onSubmit={handleAdd} className="form-grid" style={{ alignItems: 'end', marginBottom: 20 }}>

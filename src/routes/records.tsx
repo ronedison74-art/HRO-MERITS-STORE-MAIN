@@ -143,7 +143,7 @@ function Records() {
           </select>
         </div>
         <div className="field">
-          <label>Violation</label>
+          <label>Sanction</label>
           <select value={violation} onChange={(e) => setViolation(e.target.value)}>
             <option value="">All</option>
             <option value="YES">Yes</option>
@@ -170,7 +170,7 @@ function Records() {
               <th>Confirmation Date</th>
               <th>Status</th>
               <th>Deducted</th>
-              <th>Violation</th>
+              <th>Sanction</th>
               <th>Processed By</th>
               <th></th>
             </tr>

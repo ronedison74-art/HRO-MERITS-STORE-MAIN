@@ -248,7 +248,7 @@ function Encode() {
 
   return (
     <AppShell
-      title="Encode"
+      title="Merit Store Availment"
       subtitle="Day 1 — record a privilege availment. No merits are deducted yet."
     >
       <div className="card">

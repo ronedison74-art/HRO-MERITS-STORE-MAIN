@@ -89,8 +89,8 @@ export function CadetPicker({
             marginTop: 4,
             maxHeight: 260,
             overflowY: 'auto',
-            background: 'var(--bg2, #0f172a)',
-            border: '1px solid var(--bd, #334155)',
+            background: 'var(--sur2)',
+            border: '1px solid var(--bor2)',
             borderRadius: 8,
             boxShadow: '0 8px 24px rgba(0,0,0,.35)',
           }}
@@ -117,8 +117,8 @@ export function CadetPicker({
                 padding: '10px 12px',
                 background: 'transparent',
                 border: 'none',
-                borderBottom: '1px solid var(--bd, #1e293b)',
-                color: 'var(--tx, #e2e8f0)',
+                borderBottom: '1px solid var(--bor)',
+                color: 'var(--tx)',
                 cursor: 'pointer',
                 fontSize: 14,
               }}

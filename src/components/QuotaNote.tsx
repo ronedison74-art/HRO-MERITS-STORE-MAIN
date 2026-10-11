@@ -6,9 +6,9 @@ const warn = {
   borderRadius: 6,
   fontSize: 13,
   lineHeight: 1.4,
-  background: 'rgba(245, 158, 11, 0.12)',
-  border: '1px solid rgba(245, 158, 11, 0.5)',
-  color: '#b45309',
+  background: 'rgba(251, 146, 60, 0.12)',
+  border: '1px solid rgba(251, 146, 60, 0.55)',
+  color: '#fdba74',
 } as const
 
 /** Quota info + warnings on Encode. Never blocks submitting. */

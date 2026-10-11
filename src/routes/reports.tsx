@@ -104,7 +104,7 @@ function Reports() {
             <h2>{generated.label}</h2>
             <div className="ps-date">{formatDateLong(generated.when)}</div>
             {generated.rows.length === 0 ? (
-              <div style={{ color: '#6b6b80', fontSize: 13, padding: '12px 0' }}>No matching availments.</div>
+              <div style={{ color: 'var(--tx3)', fontSize: 13, padding: '12px 0' }}>No matching availments.</div>
             ) : (
               <table>
                 <thead>

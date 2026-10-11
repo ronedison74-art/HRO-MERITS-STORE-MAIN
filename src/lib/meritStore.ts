@@ -85,7 +85,7 @@ export function accountabilityQuantityLabel(privilegeId: string): string {
 }
 
 export function noConfirmationRuleLabel(type: PrivilegeType): string {
-  return type === 'REGULAR' ? 'Cancel — No Deduction' : 'Deduct + Violation'
+  return type === 'REGULAR' ? 'Cancel — No Deduction' : 'Deduct + Sanction'
 }
 
 const isBrowser = typeof window !== 'undefined'
@@ -598,7 +598,7 @@ export async function resolveConfirmation(
     } else {
       fleetSynced = false
       fleetError =
-        'No cadet linked to Fleet Merits (pick a synced cadet on Encode so the name matches exactly).'
+        'No cadet linked to Fleet Merits (pick a synced cadet on the Availment page so the name matches exactly).'
     }
   }
 

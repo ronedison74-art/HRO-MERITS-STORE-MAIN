@@ -6,7 +6,7 @@ import { Preloader } from '@/components/Preloader'
 
 const NAV_ITEMS = [
   { to: '/', label: 'Portal', icon: '🏠', adminOnly: false },
-  { to: '/encode', label: 'Encode', icon: '✏️', adminOnly: false },
+  { to: '/encode', label: 'Availment', icon: '✏️', adminOnly: false },
   { to: '/confirm', label: 'Confirm', icon: '✅', adminOnly: false },
   { to: '/records', label: 'Records', icon: '📋', adminOnly: false },
   { to: '/reports', label: 'Reports', icon: '🖨️', adminOnly: false },

@@ -35,6 +35,12 @@ export function batchColor(batch: string): string | undefined {
 /** What the officer must do, in words. */
 export function officerInstruction(t: Transaction): string {
   if (t.privilegeType !== 'ACCOUNTABILITY' || t.quantity == null) return ''
+  // Not Logged: merits were deducted, nothing is reduced, and the cadet is sanctioned.
+  if (t.status === 'Not Confirmed') {
+    if (t.privilegeId === ED_ID) return 'Not logged: sanction this cadet (no ED reduction)'
+    if (t.privilegeId === DR_ID) return 'Not logged: sanction this cadet (no demerit offset)'
+    return `Not logged: sanction this cadet (${t.privilegeName})`
+  }
   if (t.privilegeId === ED_ID) return `Reduce ${t.quantity} ED hour(s) for this cadet`
   if (t.privilegeId === DR_ID) return `Offset ${t.quantity} demerit(s) for this cadet`
   return `Process quantity ${t.quantity} (${t.privilegeName})`

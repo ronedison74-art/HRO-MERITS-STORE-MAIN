@@ -184,7 +184,7 @@ export async function pushFleetAvailed(input: {
     if (error.code === '23503' || /foreign key|not present in table/i.test(msg)) {
       msg =
         `Cadet name "${input.cadetName}" is not in Fleet Merits cadets table. ` +
-        'Admin → Sync from Fleet Merits, then Encode using the dropdown (exact name).'
+        'Admin → Sync from Fleet Merits, then use the Availment page dropdown (exact name).'
     }
     return { ok: false, error: msg }
   }
