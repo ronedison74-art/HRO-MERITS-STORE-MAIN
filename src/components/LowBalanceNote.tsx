@@ -6,6 +6,7 @@ export function LowBalanceNote({ warning }: { warning: BalanceWarning }) {
   return (
     <div
       role="status"
+      className="ms-fade"
       style={{
         marginTop: 6,
         padding: '6px 10px',

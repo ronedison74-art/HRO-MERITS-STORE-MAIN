@@ -17,7 +17,7 @@ export function QuotaNote({ result }: { result: QuotaResult }) {
     result
 
   return (
-    <div role="status">
+    <div role="status" className="ms-fade">
       {notice && <div style={warn}>⚠️ {notice}</div>}
 
       {!notice && limit != null && (

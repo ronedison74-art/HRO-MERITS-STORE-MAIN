@@ -2,6 +2,7 @@ import { Link, useRouterState } from '@tanstack/react-router'
 import { useState } from 'react'
 import { useAuth } from '@/lib/auth'
 import { LoginGate } from '@/components/LoginGate'
+import { Preloader } from '@/components/Preloader'
 
 const NAV_ITEMS = [
   { to: '/', label: 'Portal', icon: '🏠', adminOnly: false },
@@ -16,12 +17,15 @@ export function AppShell({
   title,
   subtitle,
   adminOnly = false,
+  bare = false,
   children,
 }: {
   title: string
   subtitle?: string
   /** Page is only for admins (encoders see an "Admin access required" message). */
   adminOnly?: boolean
+  /** Skip the default title/subtitle (the page draws its own header, e.g. the homepage). */
+  bare?: boolean
   children: React.ReactNode
 }) {
   const [open, setOpen] = useState(false)
@@ -29,6 +33,7 @@ export function AppShell({
   const { status, email, role, isAdmin, signOut } = useAuth()
 
   // Nothing renders (and no data loads) until the user is signed in AND allowed.
+  if (status === 'loading') return <Preloader />
   if (status !== 'signedIn') return <LoginGate />
 
   const navItems = NAV_ITEMS.filter((item) => isAdmin || !item.adminOnly)
@@ -110,8 +115,8 @@ export function AppShell({
       </div>
 
       <main className="app-content">
-        <h1 className="page-title">{title}</h1>
-        {subtitle && <p className="page-sub">{subtitle}</p>}
+        {!bare && <h1 className="page-title">{title}</h1>}
+        {!bare && subtitle && <p className="page-sub">{subtitle}</p>}
         {adminOnly && !isAdmin ? (
           <div className="card">
             <div className="card-title">Admin access required</div>

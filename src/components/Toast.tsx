@@ -17,18 +17,25 @@ export function useToast() {
 
 export function ToastProvider({ children }: { children: React.ReactNode }) {
   const [toast, setToast] = useState<ToastMsg | null>(null)
+  const [visible, setVisible] = useState(false)
   const timer = useRef<number | undefined>(undefined)
 
   const show = useCallback((text: string, variant: ToastVariant = 'ok') => {
     setToast({ id: Date.now(), text, variant })
+    setVisible(true)
     if (timer.current) window.clearTimeout(timer.current)
-    timer.current = window.setTimeout(() => setToast(null), 2600)
+    // Hide (fade out) but keep the text so it doesn't vanish mid-fade.
+    timer.current = window.setTimeout(() => setVisible(false), 2600)
   }, [])
 
   return (
     <ToastCtx.Provider value={{ show }}>
       {children}
-      <div className={`toast t-${toast?.variant ?? 'ok'} ${toast ? 'show' : ''}`}>
+      <div
+        className={`toast t-${toast?.variant ?? 'ok'} ${visible ? 'show' : ''}`}
+        role="status"
+        aria-live="polite"
+      >
         {toast?.text}
       </div>
     </ToastCtx.Provider>

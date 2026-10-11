@@ -846,3 +846,526 @@ table.ms-table {
   background: rgba(91, 141, 238, 0.12);
   color: var(--acc);
 }
+
+/* ============================================================
+   ANIMATIONS — subtle and professional.
+   Everything below is switched off for people who prefer reduced motion,
+   and for printing.
+   ============================================================ */
+
+/* ---------- Background: slow grid drift + two soft glows ---------- */
+body::before {
+  animation: msGridDrift 90s linear infinite;
+}
+@keyframes msGridDrift {
+  to {
+    background-position: 44px 44px, 44px 44px;
+  }
+}
+body::after {
+  content: '';
+  position: fixed;
+  inset: -10%;
+  pointer-events: none;
+  z-index: 0;
+  background:
+    radial-gradient(40vw 40vw at 18% 12%, rgba(91, 141, 238, 0.09), transparent 70%),
+    radial-gradient(36vw 36vw at 85% 88%, rgba(124, 92, 252, 0.08), transparent 70%);
+  animation: msGlowDrift 28s ease-in-out infinite alternate;
+}
+@keyframes msGlowDrift {
+  from {
+    transform: translate3d(0, 0, 0) scale(1);
+    opacity: 0.75;
+  }
+  to {
+    transform: translate3d(2.5%, -2%, 0) scale(1.08);
+    opacity: 1;
+  }
+}
+
+/* ---------- Page content: gentle staggered fade-up ---------- */
+@keyframes msFadeUp {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+@keyframes msFade {
+  from {
+    opacity: 0;
+    transform: translateY(-3px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+/* fill-mode "backwards" so no transform is left behind afterwards (keeps dropdowns working) */
+.app-content > * {
+  animation: msFadeUp 0.42s cubic-bezier(0.22, 1, 0.36, 1) backwards;
+}
+.app-content > *:nth-child(2) { animation-delay: 0.05s; }
+.app-content > *:nth-child(3) { animation-delay: 0.1s; }
+.app-content > *:nth-child(4) { animation-delay: 0.15s; }
+.app-content > *:nth-child(5) { animation-delay: 0.2s; }
+.app-content > *:nth-child(n + 6) { animation-delay: 0.25s; }
+
+/* warnings / notes that appear while typing */
+.ms-fade {
+  animation: msFade 0.28s ease backwards;
+}
+
+/* ---------- Buttons, links, inputs, rows ---------- */
+.sub-btn {
+  transition: opacity 0.2s, transform 0.2s, box-shadow 0.2s, background-color 0.2s;
+}
+.sub-btn:hover:not(:disabled) {
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.28);
+}
+.sub-btn:active:not(:disabled) {
+  transform: translateY(0) scale(0.98);
+  box-shadow: none;
+}
+.field input,
+.field select,
+.field textarea {
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+.field input:focus,
+.field select:focus,
+.field textarea:focus {
+  box-shadow: 0 0 0 3px rgba(91, 141, 238, 0.14);
+}
+.ms-table tbody tr {
+  transition: background-color 0.15s ease;
+}
+.card {
+  transition: border-color 0.25s ease;
+}
+
+/* ---------- Toast: slides in AND fades out ---------- */
+.toast {
+  display: block;
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transform: translateX(-50%) translateY(10px);
+  transition: opacity 0.25s ease, transform 0.25s ease, visibility 0s linear 0.25s;
+}
+.toast.show {
+  opacity: 1;
+  visibility: visible;
+  transform: translateX(-50%) translateY(0);
+  transition: opacity 0.25s ease, transform 0.25s ease, visibility 0s;
+  animation: none;
+}
+
+/* ---------- Loading screen ---------- */
+.ms-preloader {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg);
+}
+.ms-preloader-mark {
+  position: relative;
+  width: 132px;
+  height: 132px;
+  display: grid;
+  place-items: center;
+}
+.ms-preloader-mark img {
+  width: 76px;
+  height: 76px;
+  object-fit: contain;
+  filter: drop-shadow(0 0 16px rgba(91, 141, 238, 0.45));
+  animation: msLogoPulse 2.2s ease-in-out infinite;
+}
+.ms-ring,
+.ms-ring2 {
+  position: absolute;
+  border-radius: 50%;
+}
+.ms-ring {
+  inset: 0;
+  border: 2px solid rgba(91, 141, 238, 0.16);
+  border-top-color: var(--acc);
+  animation: msSpin 1.6s linear infinite;
+}
+.ms-ring2 {
+  inset: -14px;
+  border: 1px dashed rgba(124, 92, 252, 0.2);
+  animation: msSpin 9s linear infinite reverse;
+}
+.ms-preloader-text {
+  margin-top: 22px;
+  font-family: 'Syne', sans-serif;
+  font-weight: 700;
+  font-size: 12px;
+  letter-spacing: 0.28em;
+  color: var(--tx2);
+  animation: msTextFade 1.8s ease-in-out infinite;
+}
+@keyframes msSpin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+@keyframes msLogoPulse {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.06); }
+}
+@keyframes msTextFade {
+  0%, 100% { opacity: 0.45; }
+  50% { opacity: 1; }
+}
+
+/* ---------- Respect "reduce motion" and printing ---------- */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+@media print {
+  body::before,
+  body::after {
+    display: none;
+  }
+  *,
+  *::before,
+  *::after {
+    animation: none !important;
+    transition: none !important;
+  }
+}
+
+/* ============================================================
+   HOMEPAGE — dark luxury (black + champagne gold)
+   ============================================================ */
+.lux-hero,
+.lux-grid,
+.lux-section,
+.lux-foot {
+  --gold-1: #f3e2b3;
+  --gold-2: #d9b96a;
+  --gold-3: #b8924a;
+  --gold-line: rgba(217, 185, 106, 0.28);
+}
+
+/* ---------- Banner ---------- */
+.lux-hero {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  padding: 44px 16px 36px;
+  margin-bottom: 8px;
+}
+.lux-hero::before {
+  content: '';
+  position: absolute;
+  inset: -40px -10% auto;
+  height: 420px;
+  background: radial-gradient(60% 70% at 50% 0%, rgba(217, 185, 106, 0.14), transparent 70%);
+  pointer-events: none;
+  z-index: -1;
+}
+.lux-logo {
+  position: relative;
+  width: 104px;
+  height: 104px;
+  display: grid;
+  place-items: center;
+  margin-bottom: 24px;
+}
+.lux-logo img {
+  width: 70px;
+  height: 70px;
+  object-fit: contain;
+  filter: drop-shadow(0 0 14px rgba(255, 255, 255, 0.14));
+}
+.lux-logo-ring,
+.lux-logo-ring2 {
+  position: absolute;
+  border-radius: 50%;
+}
+.lux-logo-ring {
+  inset: 0;
+  border: 1px solid rgba(217, 185, 106, 0.55);
+  box-shadow: 0 0 28px rgba(217, 185, 106, 0.18), inset 0 0 20px rgba(217, 185, 106, 0.08);
+}
+.lux-logo-ring2 {
+  inset: -12px;
+  border: 1px dashed rgba(217, 185, 106, 0.25);
+  animation: msSpin 48s linear infinite;
+}
+.lux-eyebrow {
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.34em;
+  text-transform: uppercase;
+  color: #d9b96a;
+  opacity: 0.9;
+}
+.lux-title {
+  margin-top: 14px;
+  font-family: 'Syne', sans-serif;
+  font-weight: 800;
+  font-size: clamp(38px, 7vw, 64px);
+  letter-spacing: -0.03em;
+  line-height: 1.02;
+  background: linear-gradient(135deg, #f8ecc8 0%, #d9b96a 48%, #b8924a 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+.lux-sub {
+  margin-top: 12px;
+  font-size: 15px;
+  font-weight: 300;
+  letter-spacing: 0.02em;
+  color: var(--tx2);
+}
+.lux-rule {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: min(320px, 70%);
+  margin: 26px 0 22px;
+}
+.lux-rule span {
+  flex: 1;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(217, 185, 106, 0.55));
+}
+.lux-rule span:last-child {
+  background: linear-gradient(270deg, transparent, rgba(217, 185, 106, 0.55));
+}
+.lux-rule i {
+  width: 6px;
+  height: 6px;
+  transform: rotate(45deg);
+  background: #d9b96a;
+  box-shadow: 0 0 10px rgba(217, 185, 106, 0.7);
+}
+.lux-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  padding: 7px 16px;
+  border-radius: 100px;
+  font-size: 12px;
+  letter-spacing: 0.04em;
+  color: var(--tx2);
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid var(--gold-line);
+  backdrop-filter: blur(8px);
+}
+.lux-status em {
+  font-style: normal;
+  padding-left: 10px;
+  margin-left: 2px;
+  border-left: 1px solid var(--gold-line);
+  color: #d9b96a;
+}
+.lux-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #d9b96a;
+}
+.lux-status.ok .lux-dot {
+  background: #34d399;
+  box-shadow: 0 0 0 0 rgba(52, 211, 153, 0.5);
+  animation: luxPulse 2.4s ease-out infinite;
+}
+.lux-status.off .lux-dot {
+  background: #f87171;
+}
+@keyframes luxPulse {
+  0% { box-shadow: 0 0 0 0 rgba(52, 211, 153, 0.5); }
+  70%, 100% { box-shadow: 0 0 0 8px rgba(52, 211, 153, 0); }
+}
+
+/* ---------- Section labels ---------- */
+.lux-section {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin: 30px 2px 14px;
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.3em;
+  text-transform: uppercase;
+  color: var(--gold-2);
+}
+.lux-section::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: linear-gradient(90deg, var(--gold-line), transparent);
+}
+
+/* ---------- Cards ---------- */
+.lux-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
+  gap: 16px;
+}
+.lux-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-height: 190px;
+  padding: 22px 22px 20px;
+  border-radius: 18px;
+  text-decoration: none;
+  color: var(--tx);
+  background: linear-gradient(160deg, rgba(255, 255, 255, 0.045), rgba(255, 255, 255, 0.012));
+  border: 1px solid rgba(217, 185, 106, 0.16);
+  backdrop-filter: blur(10px);
+  overflow: hidden;
+  transition:
+    transform 0.35s cubic-bezier(0.22, 1, 0.36, 1),
+    border-color 0.35s ease,
+    box-shadow 0.35s ease;
+  animation: msFadeUp 0.5s cubic-bezier(0.22, 1, 0.36, 1) backwards;
+  animation-delay: calc(var(--i, 0) * 60ms + 120ms);
+}
+/* soft gold sheen that follows the top edge */
+.lux-card::before {
+  content: '';
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(243, 226, 179, 0.6), transparent);
+  opacity: 0.35;
+  transition: opacity 0.35s ease;
+}
+.lux-card::after {
+  content: '';
+  position: absolute;
+  inset: auto -30% -60% -30%;
+  height: 70%;
+  background: radial-gradient(50% 60% at 50% 100%, rgba(217, 185, 106, 0.14), transparent 70%);
+  opacity: 0;
+  transition: opacity 0.4s ease;
+  pointer-events: none;
+}
+.lux-card:hover,
+.lux-card:focus-visible {
+  transform: translateY(-5px);
+  border-color: rgba(217, 185, 106, 0.55);
+  box-shadow: 0 18px 40px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(217, 185, 106, 0.12),
+    0 0 36px rgba(217, 185, 106, 0.1);
+  outline: none;
+}
+.lux-card:hover::before,
+.lux-card:focus-visible::before {
+  opacity: 1;
+}
+.lux-card:hover::after,
+.lux-card:focus-visible::after {
+  opacity: 1;
+}
+.lux-card-top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  margin-bottom: 10px;
+}
+.lux-icon {
+  display: grid;
+  place-items: center;
+  width: 46px;
+  height: 46px;
+  border-radius: 50%;
+  color: var(--gold-2);
+  background: radial-gradient(circle at 30% 25%, rgba(243, 226, 179, 0.16), rgba(217, 185, 106, 0.04));
+  border: 1px solid rgba(217, 185, 106, 0.35);
+  transition: color 0.3s ease, transform 0.4s cubic-bezier(0.22, 1, 0.36, 1), box-shadow 0.3s ease;
+}
+.lux-card:hover .lux-icon,
+.lux-card:focus-visible .lux-icon {
+  color: #f8ecc8;
+  transform: scale(1.07);
+  box-shadow: 0 0 22px rgba(217, 185, 106, 0.3);
+}
+.lux-badge {
+  padding: 4px 11px;
+  border-radius: 100px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: #1a1306;
+  background: linear-gradient(135deg, #f3e2b3, #d9b96a);
+  box-shadow: 0 2px 12px rgba(217, 185, 106, 0.35);
+}
+.lux-label {
+  font-family: 'Syne', sans-serif;
+  font-weight: 700;
+  font-size: 18px;
+  letter-spacing: -0.01em;
+}
+.lux-desc {
+  flex: 1;
+  font-size: 13px;
+  line-height: 1.55;
+  color: var(--tx2);
+}
+.lux-cta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 6px;
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--gold-2);
+}
+.lux-arrow {
+  display: inline-block;
+  transition: transform 0.35s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.lux-card:hover .lux-arrow,
+.lux-card:focus-visible .lux-arrow {
+  transform: translateX(5px);
+}
+.lux-foot {
+  margin: 30px 0 6px;
+  text-align: center;
+  font-size: 12px;
+  letter-spacing: 0.03em;
+  color: var(--tx3);
+}
+@media (max-width: 520px) {
+  .lux-hero {
+    padding-top: 28px;
+  }
+  .lux-grid {
+    grid-template-columns: 1fr;
+  }
+  .lux-card {
+    min-height: 0;
+  }
+}
+.lux-grid {
+  animation: none; /* the cards animate individually */
+}
