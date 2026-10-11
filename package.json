@@ -6,7 +6,7 @@
     "dev": "vite dev --port 3000",
     "build": "vite build && tsc --noEmit",
     "preview": "vite preview",
-    "test": "node --test tests/rules.test.ts tests/quota.test.ts"
+    "test": "node --test tests/rules.test.ts tests/quota.test.ts tests/paginate.test.ts tests/recordsSheets.test.ts"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.49.1",
@@ -23,7 +23,8 @@
     "react-dom": "19.2.8",
     "tailwindcss": "4.2.2",
     "vite-tsconfig-paths": "6.1.1",
-    "xlsx": "^0.18.5"
+    "xlsx": "^0.18.5",
+    "xlsx-js-style": "^1.2.0"
   },
   "devDependencies": {
     "@types/node": "22.20.1",
