@@ -172,6 +172,7 @@ function Records() {
               <th>Deducted</th>
               <th>Sanction</th>
               <th>Processed By</th>
+              <th>Invalid Reason</th>
               <th></th>
             </tr>
           </thead>
@@ -199,6 +200,7 @@ function Records() {
                   <ViolationBadge violation={t.violation} />
                 </td>
                 <td>{t.processedBy}</td>
+                <td>{t.status === 'Invalid' ? t.invalidReason || '—' : ''}</td>
                 <td>
                   {isAdmin && (
                     <button

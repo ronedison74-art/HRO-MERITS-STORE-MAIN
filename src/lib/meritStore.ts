@@ -65,6 +65,8 @@ export interface Transaction {
   violation: boolean
   processedBy: string
   remarks: string
+  /** Why the availment was marked Invalid (only set when status is Invalid). */
+  invalidReason: string
   createdAt: string
   /** For accountability privileges: the raw ED hours / demerits count. Total merits = quantity × rate. */
   quantity?: number
@@ -561,6 +563,7 @@ export async function resolveConfirmation(
   id: string,
   outcome: ConfirmOutcome,
   confirmationDate: string,
+  invalidReason?: string,
 ): Promise<{
   transactions: Transaction[]
   fleetSynced: boolean
@@ -569,7 +572,7 @@ export async function resolveConfirmation(
   /** Set when Fleet's Quota ED / DR couldn't be updated. */
   quotaError?: string
 }> {
-  const res = await ms.resolveConfirmationRemote({ id, outcome, confirmationDate })
+  const res = await ms.resolveConfirmationRemote({ id, outcome, confirmationDate, invalidReason })
   const txn = res.transaction
 
   _transactions = _transactions.map((t) => (t.id === id ? txn : t))

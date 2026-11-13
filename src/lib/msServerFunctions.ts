@@ -81,6 +81,7 @@ const txnFromRow = (r: Row): Transaction => ({
   violation: Boolean(r.violation),
   processedBy: r.processed_by == null ? '' : String(r.processed_by),
   remarks: r.remarks == null ? '' : String(r.remarks),
+  invalidReason: r.invalid_reason == null ? '' : String(r.invalid_reason),
   createdAt: r.created_at ? String(r.created_at) : new Date().toISOString(),
   quantity: r.quantity == null ? undefined : Number(r.quantity),
 })
@@ -322,7 +323,12 @@ export const createAvailmentsServer = createServerFn({ method: 'POST' })
 export const resolveConfirmationServer = createServerFn({ method: 'POST' })
   .middleware([authMiddleware])
   .inputValidator(
-    (d: { id: string; outcome: ConfirmOutcome; confirmationDate: string }) => d,
+    (d: {
+      id: string
+      outcome: ConfirmOutcome
+      confirmationDate: string
+      invalidReason?: string
+    }) => d,
   )
   .handler(async ({ data }) => {
     const id = text(data.id, 'Transaction id', 50)
@@ -330,6 +336,11 @@ export const resolveConfirmationServer = createServerFn({ method: 'POST' })
     if (!['granted', 'not-granted', 'invalid'].includes(data.outcome)) {
       fail('Unknown outcome.')
     }
+    // A reason is mandatory when invalidating, and ignored for any other outcome.
+    const invalidReason =
+      data.outcome === 'invalid'
+        ? text(data.invalidReason, 'Reason for invalidating', 500)
+        : null
 
     const sb = await db()
 
@@ -363,6 +374,7 @@ export const resolveConfirmationServer = createServerFn({ method: 'POST' })
         merits_deducted: patch.meritsDeducted,
         violation: patch.violation,
         confirmation_date: confirmationDate,
+        invalid_reason: invalidReason,
         cadet_id: cadetId || txn.cadet_id,
         updated_at: new Date().toISOString(),
       })
@@ -387,6 +399,7 @@ export const resolveConfirmationServer = createServerFn({ method: 'POST' })
             merits_deducted: 0,
             violation: false,
             confirmation_date: null,
+            invalid_reason: null,
             cadet_id: txn.cadet_id,
             updated_at: new Date().toISOString(),
           })

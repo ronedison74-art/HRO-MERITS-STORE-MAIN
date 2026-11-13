@@ -38,6 +38,7 @@ export const resolveConfirmationRemote = (input: {
   id: string
   outcome: ConfirmOutcome
   confirmationDate: string
+  invalidReason?: string
 }) => resolveConfirmationServer({ data: input })
 
 export const deleteTransactionRemote = (id: string, password: string) =>

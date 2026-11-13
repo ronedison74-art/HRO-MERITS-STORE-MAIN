@@ -25,6 +25,9 @@ function Confirm() {
   const [busyId, setBusyId] = useState<string | null>(null)
   const [selected, setSelected] = useState<Set<string>>(new Set())
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({})
+  // Ids waiting for an "Invalid" reason (null = dialog closed).
+  const [invalidIds, setInvalidIds] = useState<string[] | null>(null)
+  const [invalidReason, setInvalidReason] = useState('')
 
   const pending = useMemo(
     () => transactions.filter((t) => t.status === 'Pending'),
@@ -123,11 +126,12 @@ function Confirm() {
   async function handleOne(
     id: string,
     outcome: 'granted' | 'not-granted' | 'invalid',
+    reason?: string,
   ) {
     const txn = pending.find((t) => t.id === id)
     setBusyId(id)
     try {
-      const result = await resolveConfirmation(id, outcome, todayISO())
+      const result = await resolveConfirmation(id, outcome, todayISO(), reason)
       const quotaNote = result.quotaError
         ? ` Fleet quota not updated: ${result.quotaError}`
         : ''
@@ -143,7 +147,7 @@ function Confirm() {
           result.fleetSynced && !result.unlinked && !result.quotaError ? 'ok' : 'bad',
         )
       } else if (outcome === 'invalid') {
-        show(`${id} Invalid — no deduction, no availment (not allowed).`, 'bad')
+        show(`${id} Invalid — no deduction, no availment. Reason: ${reason}`, 'bad')
       } else {
         // not-granted
         const willDeduct = txn?.privilegeType === 'ACCOUNTABILITY'
@@ -171,15 +175,47 @@ function Confirm() {
     }
   }
 
-  async function handleBulk(outcome: 'granted' | 'not-granted' | 'invalid') {
-    const ids = Array.from(selected)
+  /** Open the reason dialog; nothing is saved until a reason is submitted. */
+  function askInvalid(ids: string[]) {
+    if (ids.length === 0) {
+      show('Select at least one row.', 'bad')
+      return
+    }
+    setInvalidReason('')
+    setInvalidIds(ids)
+  }
+
+  async function submitInvalid() {
+    const reason = invalidReason.trim()
+    if (!invalidIds) return
+    if (!reason) {
+      show('Please type a reason for marking this Invalid.', 'bad')
+      return
+    }
+    const ids = invalidIds
+    setInvalidIds(null)
+    if (ids.length === 1) {
+      await handleOne(ids[0], 'invalid', reason)
+    } else {
+      await handleBulk('invalid', ids, reason)
+    }
+  }
+
+  async function handleBulk(
+    outcome: 'granted' | 'not-granted' | 'invalid',
+    idsOverride?: string[],
+    reason?: string,
+  ) {
+    const ids = idsOverride ?? Array.from(selected)
     if (ids.length === 0) {
       show('Select at least one row.', 'bad')
       return
     }
     const label =
       outcome === 'granted' ? 'Logged' : outcome === 'invalid' ? 'Invalid' : 'Not Logged'
+    // Invalid already asked for confirmation (and a reason) in the dialog.
     if (
+      outcome !== 'invalid' &&
       !window.confirm(
         `Mark ${ids.length} selected pending availment(s) as ${label}?`,
       )
@@ -193,7 +229,7 @@ function Confirm() {
     try {
       for (const id of ids) {
         try {
-          const result = await resolveConfirmation(id, outcome, todayISO())
+          const result = await resolveConfirmation(id, outcome, todayISO(), reason)
           if (outcome === 'granted' && (!result.fleetSynced || result.quotaError)) fail++
           else ok++
         } catch {
@@ -283,7 +319,7 @@ function Confirm() {
             type="button"
             className="sub-btn red sm"
             disabled={busy || selected.size === 0}
-            onClick={() => handleBulk('invalid')}
+            onClick={() => askInvalid(Array.from(selected))}
           >
             Invalid selected
           </button>
@@ -489,8 +525,8 @@ function Confirm() {
                                 type="button"
                                 className="sub-btn red sm"
                                 disabled={busy}
-                                onClick={() => handleOne(t.id, 'invalid')}
-                                title="Invalid — no deduction, no availment (not allowed)"
+                                onClick={() => askInvalid([t.id])}
+                                title="Invalid — no deduction, no availment (a reason is required)"
                               >
                                 {rowBusy ? '…' : 'Invalid'}
                               </button>
@@ -506,6 +542,65 @@ function Confirm() {
           </div>
         )
       })}
+
+      {invalidIds && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="invalidTitle"
+          onClick={() => setInvalidIds(null)}
+          style={{
+            position: 'fixed',
+            inset: 0,
+            zIndex: 1000,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: 16,
+            background: 'rgba(0,0,0,0.6)',
+          }}
+        >
+          <div
+            className="card"
+            onClick={(e) => e.stopPropagation()}
+            style={{ width: '100%', maxWidth: 460 }}
+          >
+            <h3 id="invalidTitle" style={{ marginTop: 0 }}>
+              Mark {invalidIds.length > 1 ? `${invalidIds.length} availments` : invalidIds[0]} as Invalid
+            </h3>
+            <p className="field-hint" style={{ marginTop: 0 }}>
+              No merits are deducted and nothing is availed. The reason you type will appear in
+              Records and Reports.
+            </p>
+            <div className="field">
+              <label htmlFor="invalidReason">Reason (required)</label>
+              <textarea
+                id="invalidReason"
+                autoFocus
+                rows={3}
+                maxLength={500}
+                value={invalidReason}
+                onChange={(e) => setInvalidReason(e.target.value)}
+                placeholder="e.g. Cadet was not eligible / wrong privilege encoded"
+              />
+              <span className="field-hint">{invalidReason.length}/500</span>
+            </div>
+            <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', marginTop: 14 }}>
+              <button type="button" className="sub-btn ghost sm" onClick={() => setInvalidIds(null)}>
+                Cancel
+              </button>
+              <button
+                type="button"
+                className="sub-btn red sm"
+                disabled={!invalidReason.trim()}
+                onClick={submitInvalid}
+              >
+                Mark Invalid
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </AppShell>
   )
 }

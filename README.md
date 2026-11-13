@@ -23,6 +23,7 @@ The browser only holds the public anon key (used for sign-in); it cannot read an
 If you installed before a feature was added, run these once (safe to re-run), in this order, in the SQL Editor:
 1. `supabase/migration_privileges.sql` — privilege disable + quantity labels
 2. `supabase/migration_quotas.sql` — ED / demerit quotas and semester dates
+3. `supabase/migration_invalid_reason.sql` — reason typed when an availment is marked Invalid
 
 ## 2. Netlify
 1. `npm install` (this also installs `@netlify/vite-plugin-tanstack-start`; run `npm install -D @netlify/vite-plugin-tanstack-start` once to pin its version).

@@ -72,6 +72,7 @@ create table if not exists public.ms_transactions (
   violation         boolean not null default false,
   processed_by      text,
   remarks           text,
+  invalid_reason    text,
   quantity          numeric,
   created_at        timestamptz not null default now(),
   updated_at        timestamptz not null default now()

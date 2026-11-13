@@ -39,12 +39,22 @@ function Reports() {
     setGenerated({ rows, label, when: date || new Date().toISOString().slice(0, 10) })
   }
 
+  // Only add the Reason column when the list actually contains Invalid entries.
+  const showReason = !!generated && generated.rows.some((t) => t.status === 'Invalid')
+
   function handleExport() {
     if (!generated) return
+    const withReason = generated.rows.some((t) => t.status === 'Invalid')
     downloadCSV(
       `merit-store-report-${Date.now()}.csv`,
-      ['No.', 'Cadet Name', 'Batch / Section', 'Status'],
-      generated.rows.map((t, i) => [i + 1, t.cadetName.toUpperCase(), t.batch, t.status.toUpperCase()]),
+      ['No.', 'Cadet Name', 'Batch / Section', 'Status', ...(withReason ? ['Reason'] : [])],
+      generated.rows.map((t, i) => [
+        i + 1,
+        t.cadetName.toUpperCase(),
+        t.batch,
+        t.status.toUpperCase(),
+        ...(withReason ? [t.status === 'Invalid' ? t.invalidReason : ''] : []),
+      ]),
     )
   }
 
@@ -113,6 +123,7 @@ function Reports() {
                     <th>Cadet Name</th>
                     <th>Batch</th>
                     <th>Status</th>
+                    {showReason && <th>Reason</th>}
                   </tr>
                 </thead>
                 <tbody>
@@ -122,6 +133,7 @@ function Reports() {
                       <td>{t.cadetName.toUpperCase()}</td>
                       <td>{t.batch}</td>
                       <td>{t.status.toUpperCase()}</td>
+                      {showReason && <td>{t.status === 'Invalid' ? t.invalidReason || '—' : ''}</td>}
                     </tr>
                   ))}
                 </tbody>
